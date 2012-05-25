@@ -1,0 +1,9 @@
+.*.swp
+.*.swo
+
+a.out
+*.o
+
+# python
+*.pyc
+*.pyo
