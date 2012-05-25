@@ -1,8 +1,10 @@
 #include <iostream>
 #include <iomanip>
+#include <fstream>
 #include <sstream>
 #include <cstddef>
 #include <cstdlib>
+#include <cstdio>
 #include <vector>
 
 
@@ -45,36 +47,34 @@ struct Particle {
 //    ~Particles() { }
 //};
 
+//struct DataBrick {
+//    float x_start;
+//    float x_step;
+//    size_t x_length;
+//
+//    float y_start;
+//    float y_step;
+//    size_t y_length;
+//
+//    float z_start;
+//    float z_step;
+//    size_t z_length;
+//
+//    time_t t_start;
+//    time_t t_step;
+//    size_t t_length;
+//
+//    float *data;
+//};
 
-struct DataBrick {
-    float x_start;
-    float x_step;
-    size_t x_length;
-
-    float y_start;
-    float y_step;
-    size_t y_length;
-
-    float z_start;
-    float z_step;
-    size_t z_length;
-
-    time_t t_start;
-    time_t t_step;
-    size_t t_length;
-
-    float *data;
-};
-
-
-float DataBrickGetValue(float x, float y, float z, time_t t)
-{
-    float diff = x - x_start;
-    float quot = diff / x_step;
-    size_t pos = (size_t)quot;
-    float rem = quot - pos;
-
-}
+//float DataBrickGetValue(float x, float y, float z, time_t t)
+//{
+//    float diff = x - x_start;
+//    float quot = diff / x_step;
+//    size_t pos = (size_t)quot;
+//    float rem = quot - pos;
+//
+//}
 
 
 
@@ -96,6 +96,92 @@ float *dev_windV;
 float *dev_windW;
 
 
+struct WindData {
+    WindData(size_t x, size_t y, size_t z, size_t t) :
+        num_x(x), num_y(y), num_z(z), num_t(t),
+        num_cells(x * y * z * t),
+        windU(num_cells),
+        windV(num_cells),
+        windW(num_cells)
+    { }
+
+    size_t num_x;
+    size_t num_y;
+    size_t num_z;
+    size_t num_t;
+    size_t num_cells;
+
+    std::vector<float> windU;   // [t][z][y][x] = float
+    std::vector<float> windV;
+    std::vector<float> windW;
+};
+
+
+WindData readASCIIDataFile(const char * fname)
+{
+    std::ifstream ins;
+
+    size_t num_x;
+    size_t num_y;
+    size_t num_z;
+    size_t num_t;
+
+    ins.open(fname);
+    ins >> num_x;
+    ins >> num_y;
+    ins >> num_z;
+    ins >> num_t;
+
+    WindData wd(num_x, num_y, num_z, num_t);
+
+    for (size_t t=0; t<num_t; t++) {
+        size_t t_offset = t * num_z * num_y * num_x;
+        for (size_t z=0; z<num_z; z++) {
+            size_t z_offset = z * num_y * num_x;
+            for (size_t y=0; y<num_y; y++) {
+                size_t y_offset = y * num_x;
+                for (size_t x=0; x<num_x; x++) {
+                    size_t offset = x + y_offset + z_offset + t_offset;
+
+                    ins >> wd.windU[offset];
+                    ins >> wd.windV[offset];
+                    ins >> wd.windW[offset];
+                }
+            }
+        }
+    }
+
+    ins.close();
+
+    return wd;
+}
+
+
+void printWindData(const WindData &wd)
+{
+    for (size_t t=0; t<wd.num_t; t++) {
+        size_t t_offset = t * wd.num_z * wd.num_y * wd.num_x;
+        for (size_t z=0; z<wd.num_z; z++) {
+            size_t z_offset = z * wd.num_y * wd.num_x;
+            for (size_t y=0; y<wd.num_y; y++) {
+                size_t y_offset = y * wd.num_x;
+                for (size_t x=0; x<wd.num_x; x++) {
+                    size_t offset = x + y_offset + z_offset + t_offset;
+
+                    std::printf("%7.2f ", wd.windU[offset]);
+                    std::printf("%7.2f ", wd.windV[offset]);
+                    std::printf("%7.2f ", wd.windW[offset]);
+                }
+                std::printf("\n");
+            }
+            std::printf("\n");
+        }
+    }
+}
+
+
+
+
 //struct ParticleSource {
 //    int id;
 //
@@ -103,6 +189,7 @@ float *dev_windW;
 //    float pos_y;
 //    float pos_z;
 //};
+
 
 
 
@@ -233,19 +320,27 @@ void cleanup()
 
 int main(int argc, char *argv[])
 {
+    if (argc < 2) {
+        std::printf("Usage: %s dataFile\n", argv[0]);
+        std::exit(1);
+    }
+
+    WindData wd = readASCIIDataFile(argv[1]);
+    printWindData(wd);
+
     // init settings/configuration
     // init meteorology grid
 
-    init_grid(256, 256, 16, 32);
-    init_particles(10, 1, 2, 3);
+    //init_grid(256, 256, 16, 32);
+    //init_particles(10, 1, 2, 3);
 
-    print_dev_particles(10);
-    advect_particles<<<1, 16>>>(dev_particles, 10, 256, 256, 16);
-    print_dev_particles(10);
-    advect_particles<<<1, 16>>>(dev_particles, 10, 256, 256, 16);
-    print_dev_particles(10);
-    advect_particles<<<1, 16>>>(dev_particles, 10, 256, 256, 16);
-    print_dev_particles(10);
+    //print_dev_particles(10);
+    //advect_particles<<<1, 16>>>(dev_particles, 10, 256, 256, 16);
+    //print_dev_particles(10);
+    //advect_particles<<<1, 16>>>(dev_particles, 10, 256, 256, 16);
+    //print_dev_particles(10);
+    //advect_particles<<<1, 16>>>(dev_particles, 10, 256, 256, 16);
+    //print_dev_particles(10);
 
     //Grid g = Grid(512, 512, 128);
     //for (int t=0; t<10; t++) {
@@ -253,7 +348,7 @@ int main(int argc, char *argv[])
     //    std::cout << p.toString() << std::endl;
     //}
 
-    cleanup();
+    //cleanup();
 
 //    for (int timestep_i=0; timestep_i < num_timesteps; timestep_i++) {
 //        // introduce new particles into the system
