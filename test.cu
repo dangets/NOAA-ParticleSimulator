@@ -8,101 +8,68 @@
 #include <vector>
 
 
-struct Particle {
+struct ParticleSource {
+    int id;
+
     float pos_x;
     float pos_y;
     float pos_z;
 
-    // bool has_deposited;
-    // source_id
-    // age
-    // pollutant_type, mass, etc...
-
-    Particle() { }
-    Particle(float x, float y, float z) :
-        pos_x(x), pos_y(y), pos_z(z) { }
-
-    std::string toString() {
-        std::ostringstream os;
-        os << std::fixed << std::setprecision(3);
-        os << "x:" << pos_x << "  ";
-        os << "y:" << pos_y << "  ";
-        os << "z:" << pos_z;
-        return os.str();
-    }
+    // particle_type...
 };
 
 
-//struct Particles {
-//    float4 *position;
-//    float4 *velocity;
-//
-//    // type
-//    // source_id
-//    // age
-//    // ...
-//    size_t length;
-//
-//    Particles(int length_) : length(length_) { }
-//    ~Particles() { }
-//};
+struct Particles {
+    Particles(size_t length_) :
+        length(length_),
+        position(length), velocity(length) { }
 
-//struct DataBrick {
-//    float x_start;
-//    float x_step;
-//    size_t x_length;
-//
-//    float y_start;
-//    float y_step;
-//    size_t y_length;
-//
-//    float z_start;
-//    float z_step;
-//    size_t z_length;
-//
-//    time_t t_start;
-//    time_t t_step;
-//    size_t t_length;
-//
-//    float *data;
-//};
+    size_t length;
+    std::vector<float4> position;
+    std::vector<float4> velocity;
 
-//float DataBrickGetValue(float x, float y, float z, time_t t)
-//{
-//    float diff = x - x_start;
-//    float quot = diff / x_step;
-//    size_t pos = (size_t)quot;
-//    float rem = quot - pos;
-//
-//}
+    // type
+    // source_id
+    // age / birthtime
+    // has_deposited
+    // ...
+};
 
 
+void printParticlesVTK(const Particles &p, std::ostream &out)
+{
+    out << "# vtk DataFile Version 2.0" << std::endl;
+    out << "junk title" << std::endl;
+    out << "ASCII" << std::endl;
+    out << "DATASET POLYDATA" << std::endl;
+    out << "POINTS " << p.length << " float" << std::endl;
 
-// particle positions
-Particle *dev_particles;
+    out << std::fixed << std::setprecision(3);
 
-// meteo grid info
-size_t dev_grid_num_x;
-size_t dev_grid_num_y;
-size_t dev_grid_num_z;
+    for (size_t i=0; i<p.length; i++) {
+        out //<< i << " "
+            << p.position[i].x << " "
+            << p.position[i].y << " "
+            << p.position[i].z << std::endl;
+    }
+}
 
-// wind velocities
-texture<float> texWindU;    // [t][z][y][x]
-texture<float> texWindV;
-texture<float> texWindW;
 
-float *dev_windU;
-float *dev_windV;
-float *dev_windW;
+void randomizeParticlesPositions(Particles &p, float xmin, float xmax, float ymin, float ymax, float zmin, float zmax)
+{
+    for (size_t i=0; i<p.length; i++) {
+        p.position[i].x = xmax * (float)drand48();
+        p.position[i].y = ymax * (float)drand48();
+        p.position[i].z = zmax * (float)drand48();
+    }
+}
 
 
 struct WindData {
     WindData(size_t x, size_t y, size_t z, size_t t) :
         num_x(x), num_y(y), num_z(z), num_t(t),
         num_cells(x * y * z * t),
-        windU(num_cells),
-        windV(num_cells),
-        windW(num_cells)
+        data(num_cells)
     { }
 
     size_t num_x;
@@ -111,13 +78,11 @@ struct WindData {
     size_t num_t;
     size_t num_cells;
 
-    std::vector<float> windU;   // [t][z][y][x] = float
-    std::vector<float> windV;
-    std::vector<float> windW;
+    std::vector<float4> data;
 };
 
 
-WindData readASCIIDataFile(const char * fname)
+WindData WindDataFromASCII(const char * fname)
 {
     std::ifstream ins;
 
@@ -143,9 +108,9 @@ WindData readASCIIDataFile(const char * fname)
                 for (size_t x=0; x<num_x; x++) {
                     size_t offset = x + y_offset + z_offset + t_offset;
 
-                    ins >> wd.windU[offset];
-                    ins >> wd.windV[offset];
-                    ins >> wd.windW[offset];
+                    ins >> wd.data[offset].x;
+                    ins >> wd.data[offset].y;
+                    ins >> wd.data[offset].z;
                 }
             }
         }
@@ -159,6 +124,8 @@ WindData readASCIIDataFile(const char * fname)
 
 void printWindData(const WindData &wd)
 {
+    std::printf("%lu %lu %lu %lu\n", wd.num_x, wd.num_y, wd.num_z, wd.num_t);
+
     for (size_t t=0; t<wd.num_t; t++) {
         size_t t_offset = t * wd.num_z * wd.num_y * wd.num_x;
         for (size_t z=0; z<wd.num_z; z++) {
@@ -168,9 +135,9 @@ void printWindData(const WindData &wd)
                 for (size_t x=0; x<wd.num_x; x++) {
                     size_t offset = x + y_offset + z_offset + t_offset;
 
-                    std::printf("%7.2f ", wd.windU[offset]);
-                    std::printf("%7.2f ", wd.windV[offset]);
-                    std::printf("%7.2f ", wd.windW[offset]);
+                    std::printf("%7.2f ", wd.data[offset].x);
+                    std::printf("%7.2f ", wd.data[offset].y);
+                    std::printf("%7.2f ", wd.data[offset].z);
                 }
                 std::printf("\n");
             }
@@ -180,141 +147,90 @@ void printWindData(const WindData &wd)
 }
 
 
+__device__
+size_t get_index(size_t x, size_t y, size_t z, size_t t,
+        size_t num_x, size_t num_y, size_t num_z, size_t num_t)
+{
+    x = min((unsigned int)x, (unsigned int)num_x-1);
+    y = min((unsigned int)y, (unsigned int)num_y-1);
+    z = min((unsigned int)z, (unsigned int)num_z-1);
+    t = min((unsigned int)t, (unsigned int)num_t-1);
 
-
-//struct ParticleSource {
-//    int id;
-//
-//    float pos_x;
-//    float pos_y;
-//    float pos_z;
-//};
-
+    return x + y * num_x + z * num_y * num_x + t * num_x * num_y * num_z;
+}
 
 
 
 __global__
-void advect_particles(Particle *particles, size_t num_particles,
-        size_t grid_num_x, size_t grid_num_y, size_t grid_num_z)
+void advect_particles(float t, float4 *pos, size_t num_p,
+        float4 *wind, size_t num_x, size_t num_y, size_t num_z, size_t num_t)
 {
-    size_t i = threadIdx.x;
-    if (i >= num_particles)
+    size_t i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= num_p)
         return;
 
-    size_t pos_offset =
-        particles[i].pos_x +
-        particles[i].pos_y * grid_num_x +
-        particles[i].pos_z * grid_num_y * grid_num_z;
+    float4 &p = pos[i];
 
-    float vel_u = tex1Dfetch(texWindU, pos_offset);
-    float vel_v = tex1Dfetch(texWindV, pos_offset);
-    float vel_w = tex1Dfetch(texWindW, pos_offset);
+    float x_d = p.x - (size_t)p.x;  // distance from point's x to prev x measurement
+    float y_d = p.y - (size_t)p.y;
+    float z_d = p.z - (size_t)p.z;
 
-    particles[i].pos_x += vel_u;
-    particles[i].pos_y += vel_v;
-    particles[i].pos_z += vel_w;
+    size_t i000 = get_index(p.x+0, p.y+0, p.z+0, t, num_x, num_y, num_z, num_t);
+    size_t i100 = get_index(p.x+1, p.y+1, p.z+0, t, num_x, num_y, num_z, num_t);
+    size_t i010 = get_index(p.x+0, p.y+1, p.z+0, t, num_x, num_y, num_z, num_t);
+    size_t i110 = get_index(p.x+1, p.y+1, p.z+0, t, num_x, num_y, num_z, num_t);
+    size_t i001 = get_index(p.x+0, p.y+0, p.z+1, t, num_x, num_y, num_z, num_t);
+    size_t i101 = get_index(p.x+1, p.y+0, p.z+1, t, num_x, num_y, num_z, num_t);
+    size_t i011 = get_index(p.x+0, p.y+1, p.z+1, t, num_x, num_y, num_z, num_t);
+    size_t i111 = get_index(p.x+1, p.y+1, p.z+1, t, num_x, num_y, num_z, num_t);
 
-    if (particles[i].pos_x < 0)
-        particles[i].pos_x = 0;
-    if (particles[i].pos_x >= grid_num_x)
-        particles[i].pos_x = grid_num_x - 1;
+    float c00 = wind[i000].x * (1 - x_d) + wind[i100].x * x_d;
+    float c10 = wind[i010].x * (1 - x_d) + wind[i110].x * x_d;
+    float c01 = wind[i001].x * (1 - x_d) + wind[i101].x * x_d;
+    float c11 = wind[i011].x * (1 - x_d) + wind[i111].x * x_d;
 
-    if (particles[i].pos_y < 0)
-        particles[i].pos_y = 0;
-    if (particles[i].pos_y >= grid_num_y)
-        particles[i].pos_y = grid_num_y - 1;
+    float c0 = c00 * (1 - y_d) + c10 * y_d;
+    float c1 = c01 * (1 - y_d) + c11 * y_d;
 
-    if (particles[i].pos_z < 0)
-        particles[i].pos_z = 0;
-    if (particles[i].pos_z >= grid_num_z)
-        particles[i].pos_z = grid_num_z - 1;
-}
+    float u = c0 * (1 - z_d) + c1 * z_d;
 
+    c00 = wind[i000].y * (1 - x_d) + wind[i100].y * x_d;
+    c10 = wind[i010].y * (1 - x_d) + wind[i110].y * x_d;
+    c01 = wind[i001].y * (1 - x_d) + wind[i101].y * x_d;
+    c11 = wind[i011].y * (1 - x_d) + wind[i111].y * x_d;
 
-void print_particles(Particle *particles, size_t num)
-{
-    for (int i=0; i<num; i++) {
-        std::cout << particles[i].toString() << std::endl;
-    }
-    std::cout << "-----------------" << std::endl;
-}
+    c0 = c00 * (1 - y_d) + c10 * y_d;
+    c1 = c01 * (1 - y_d) + c11 * y_d;
 
+    float v = c0 * (1 - z_d) + c1 * z_d;
 
-void print_dev_particles(size_t num_particles)
-{
-    size_t num_bytes = num_particles * sizeof(Particle);
+    c00 = wind[i000].z * (1 - x_d) + wind[i100].z * x_d;
+    c10 = wind[i010].z * (1 - x_d) + wind[i110].z * x_d;
+    c01 = wind[i001].z * (1 - x_d) + wind[i101].z * x_d;
+    c11 = wind[i011].z * (1 - x_d) + wind[i111].z * x_d;
 
-    Particle *tmp = (Particle *)malloc(num_bytes);
-    cudaMemcpy(tmp, dev_particles, num_bytes, cudaMemcpyDeviceToHost);
-    print_particles(tmp, num_particles);
-    free(tmp);
-}
+    c0 = c00 * (1 - y_d) + c10 * y_d;
+    c1 = c01 * (1 - y_d) + c11 * y_d;
 
+    float w = c0 * (1 - z_d) + c1 * z_d;
 
-void init_particles(size_t n, size_t x, size_t y, size_t z)
-{
-    size_t num_bytes = n * sizeof(Particle);
+    u *= 0.05f;     // conversion from speed to cell size
+    v *= 0.05f;
+    w *= 0.05f;
 
-    // allocate particle array
-    cudaMalloc((void **)&dev_particles, num_bytes);
-
-    // allocate an array on the host to copy to the device
-    Particle *tmp = (Particle *)malloc(num_bytes);
-    for (int i=0; i<n; i++) {
-        tmp[i].pos_x = x + i;
-        tmp[i].pos_y = y + i;
-        tmp[i].pos_z = z + i;
-    }
-
-    cudaMemcpy(dev_particles, tmp, num_bytes, cudaMemcpyHostToDevice);
-
-    free(tmp);
-}
+    p.x += u;
+    p.y += v;
+    p.z += w;
 
 
-void init_grid(size_t num_x, size_t num_y, size_t num_z, size_t num_t)
-{
-    size_t num_cells = num_x * num_y * num_z * num_t;
-    size_t num_bytes = num_cells * sizeof(float);
+    if (p.x < 0)     p.x = 0;
+    if (p.x > num_x) p.x = num_x - 1;
 
-    //std::cout << "num_bytes: " << num_bytes << std::endl;
+    if (p.y < 0)     p.y = 0;
+    if (p.y > num_y) p.y = num_y - 1;
 
-    // allocate the device arrays
-    cudaMalloc((void **)&dev_windU, num_bytes);
-    cudaMalloc((void **)&dev_windV, num_bytes);
-    cudaMalloc((void **)&dev_windW, num_bytes);
-
-    // bind the texture references to the arrays
-    cudaBindTexture(NULL, texWindU, dev_windU, num_bytes);
-    cudaBindTexture(NULL, texWindV, dev_windV, num_bytes);
-    cudaBindTexture(NULL, texWindW, dev_windW, num_bytes);
-
-    // initialize the device arrays with random data
-    float *tmp_data = (float *)malloc(num_bytes);
-    for (int i=0; i<num_cells; i++) {
-        tmp_data[i] = (float)drand48();
-    }
-
-    cudaMemcpy(dev_windU, tmp_data, num_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(dev_windV, tmp_data, num_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(dev_windW, tmp_data, num_bytes, cudaMemcpyHostToDevice);
-
-    free(tmp_data);
-}
-
-
-void cleanup()
-{
-    // cleanup particles
-    cudaFree(dev_particles);
-
-    // cleanup grid
-    cudaUnbindTexture(texWindU);
-    cudaUnbindTexture(texWindV);
-    cudaUnbindTexture(texWindW);
-    cudaFree(dev_windU);
-    cudaFree(dev_windV);
-    cudaFree(dev_windW);
+    if (p.z < 0)     p.z = 0;
+    if (p.z > num_z) p.z = num_z - 1;
 }
 
 
@@ -325,45 +241,46 @@ int main(int argc, char *argv[])
         std::exit(1);
     }
 
-    WindData wd = readASCIIDataFile(argv[1]);
-    printWindData(wd);
+    size_t num_particles = 100;
 
-    // init settings/configuration
-    // init meteorology grid
+    WindData wd = WindDataFromASCII(argv[1]);
+    //printWindData(wd);
 
-    //init_grid(256, 256, 16, 32);
-    //init_particles(10, 1, 2, 3);
+    Particles p = Particles(num_particles);
+    randomizeParticlesPositions(p, 0, wd.num_x, 0, wd.num_y, 0, wd.num_z);
+    //printParticlesVTK(p, std::cout);
 
-    //print_dev_particles(10);
-    //advect_particles<<<1, 16>>>(dev_particles, 10, 256, 256, 16);
-    //print_dev_particles(10);
-    //advect_particles<<<1, 16>>>(dev_particles, 10, 256, 256, 16);
-    //print_dev_particles(10);
-    //advect_particles<<<1, 16>>>(dev_particles, 10, 256, 256, 16);
-    //print_dev_particles(10);
+    // copy wind data to gpu
+    float4 *dev_wind;
+    cudaMalloc((void **)&dev_wind, wd.data.size() * sizeof(float4));
+    cudaMemcpy(dev_wind, &(wd.data[0]), wd.data.size() * sizeof(float4), cudaMemcpyHostToDevice);
 
-    //Grid g = Grid(512, 512, 128);
-    //for (int t=0; t<10; t++) {
-    //    advect_particle(p);
-    //    std::cout << p.toString() << std::endl;
-    //}
+    float4 *dev_particle_pos;
+    cudaMalloc((void **)&dev_particle_pos, num_particles * sizeof(float4));
+    cudaMemcpy(dev_particle_pos, &(p.position[0]), num_particles * sizeof(float4), cudaMemcpyHostToDevice);
 
-    //cleanup();
+    for (int i=0; i<100; i++) {
+        advect_particles<<<128, 256>>>(
+                0,
+                dev_particle_pos, num_particles,
+                dev_wind, wd.num_x, wd.num_y, wd.num_z, wd.num_t
+        );
 
-//    for (int timestep_i=0; timestep_i < num_timesteps; timestep_i++) {
-//        // introduce new particles into the system
-//
-//        for (int pollutant_i=0; pollutant_i < num_pollutants; pollutant_i++) {
-//            // skip terminated particles
-//
-//            // advect particle
-//
-//            // determine terrain height
-//
-//            // dry, wet, decay routines
-//            // surface water transport
-//        }
-//    }
+        char ofname[256];
+        std::snprintf(ofname, 255, "output_%03d.particles", i);
+        std::ofstream out(ofname);
+
+        // copy particles back to host
+        cudaMemcpy(&(p.position[0]), dev_particle_pos, num_particles * sizeof(float4), cudaMemcpyDeviceToHost);
+        printParticlesVTK(p, out);
+        out.close();
+    }
+
+    // copy particles back to host
+    cudaMemcpy(&(p.position[0]), dev_particle_pos, num_particles * sizeof(float4), cudaMemcpyDeviceToHost);
+
+    cudaFree(dev_wind);
+    cudaFree(dev_particle_pos);
 
     return 0;
 }
