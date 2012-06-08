@@ -4,6 +4,7 @@
 #include <ctime>
 #include <stdexcept>
 
+using std::size_t
 using std::time_t;
 
 
@@ -21,7 +22,7 @@ struct ParticleSource {
 
     // constructor
     ParticleSource(float x, float y, float z,
-            std::time_t start, std::time_t stop, float rate) :
+            time_t start, time_t stop, float rate) :
         pos_x(x), pos_y(y), pos_z(z),
         release_start(start), release_stop(stop), release_rate(rate)
     {

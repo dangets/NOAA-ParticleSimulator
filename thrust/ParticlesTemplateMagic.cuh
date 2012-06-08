@@ -10,12 +10,11 @@
 using std::size_t;
 
 
-// TODO: write big long documentation describing the code below...
 template<typename Vector>
 struct Particles {
     typedef typename Vector::value_type T;
 
-    // iterator logic ------------------------
+    // iterator logic
     typedef thrust::zip_iterator< 
         thrust::tuple< 
             typename Vector::iterator,  // pos_x
@@ -55,28 +54,28 @@ struct Particles {
         { }
     };
 
+
     // constructor
     Particles(size_t length_) :
         length(length_),
         pos_x(length), pos_y(length), pos_z(length) { }
 
-    // constant across the group variables ---
     size_t length;
-    // type
-    // source_id
 
-    // individual particle variables ---------
     Vector pos_x;
     Vector pos_y;
     Vector pos_z;
+
     //Vector vel_u;
     //Vector vel_v;
     //Vector vel_w;
-    Vector birthtime;       // TODO: specialize this to be a Vector<time_t>
-    // has_deposited        // TODO: specialize this to be a Vector<bool>
+
+    // type
+    // source_id
+    // birthtime
+    // has_deposited
     // ...
 
-    // convenience functions -----------------
     template <typename TOther>
     Particles<Vector>& operator=(const TOther &other) {
         pos_x = other.pos_x;
@@ -88,7 +87,6 @@ struct Particles {
 };
 
 
-/// ------ Debugging utils ------------------
 template <typename Particles>
 void ParticlesPrint(Particles &p, std::ostream &out) {
     for (size_t i=0; i<p.length; i++) {
@@ -99,7 +97,6 @@ void ParticlesPrint(Particles &p, std::ostream &out) {
 }
 
 
-/// ------ Randomize Positions ---------------
 template <typename Particles>
 struct ParticlesRandomizePositionFunctor {
     ParticlesRandomizePositionFunctor(float xmin_, float xmax_, float ymin_, float ymax_, float zmin_, float zmax_) :
@@ -135,27 +132,15 @@ void ParticlesRandomizePosition(Particles &p,
 
 
 
-/// ------ Fill positions with a constant ----
 template <typename Particles>
 void ParticlesFillPosition(Particles &p,
         typename Particles::T x,
         typename Particles::T y,
         typename Particles::T z)
 {
-    // TODO: this may be able to be made faster with a single functor
     thrust::fill(p.pos_x.begin(), p.pos_x.end(), x);
     thrust::fill(p.pos_y.begin(), p.pos_y.end(), y);
     thrust::fill(p.pos_z.begin(), p.pos_z.end(), z);
-}
-
-
-/// ------ Fill births based on start/stop/rate vars
-template <typename Particles>
-void ParticlesFillBirthTime(Particles &p, time_t start, time_t stop, float rate)
-{
-    // rate = p / s
-    float step = rate * (stop - start);
-    thrust::sequence(p.birthtime.begin(), p.birthtime.end(), (float)start, step);
 }
 
 

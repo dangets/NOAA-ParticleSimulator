@@ -34,7 +34,7 @@ struct ParticleSource {
         }
     }
 
-    /// returns the number of particles released over source lifetime
+    // returns the number of particles released over source lifetime
     size_t lifetimeParticlesReleased() {
         return (size_t) ((release_stop - release_start) * release_rate);
     }

@@ -29,7 +29,10 @@ struct Particles {
 };
 
 
+
 void ParticlesPrintToVTK(const Particles &p, std::ostream &out);
+
+
 void ParticlesRandomizePositions(Particles &p,
         float xmin, float xmax, float ymin, float ymax, float zmin, float zmax);
 

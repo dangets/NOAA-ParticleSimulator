@@ -42,19 +42,21 @@ int main(int argc, const char *argv[])
     size_t num_particles = 500;
     size_t num_timesteps = 100;
 
+    WindData<thrust::host_vector<float> >
+
     HostWindData wd_h = WindDataFromASCII(argv[1]);
     DeviceWindData wd_d(wd_h);
 
-    HostParticles p_h(num_particles);
-    DeviceParticles p_d(num_particles);
+    //HostParticles p_h(num_particles);
+    //DeviceParticles p_d(num_particles);
 
-    std::cerr << "randomizing particle position" << std::endl;
-    // randomize particle position on host
-    ParticlesRandomizePosition(p_h, 0, wd_h.num_x, 0, wd_h.num_y, 0, wd_h.num_z);
+    //std::cerr << "randomizing particle position" << std::endl;
+    //// randomize particle position on host
+    //ParticlesRandomizePosition(p_h, 0, wd_h.num_x, 0, wd_h.num_y, 0, wd_h.num_z);
 
-    std::cerr << "copying particles from host to device" << std::endl;
-    // copy host particles to device
-    p_d = p_h;
+    //std::cerr << "copying particles from host to device" << std::endl;
+    //// copy host particles to device
+    //p_d = p_h;
 
     // run the simulation on host side
     //for (int i=0; i<num_timesteps; i++) {
@@ -69,15 +71,15 @@ int main(int argc, const char *argv[])
     //}
 
     // run the simulation on device side
-    for (int i=0; i<num_timesteps; i++) {
-        char ofname[256];
-        std::snprintf(ofname, 255, "device_output_%04d.particles", i);
-        std::ofstream out(ofname);
+    //for (int i=0; i<num_timesteps; i++) {
+    //    char ofname[256];
+    //    std::snprintf(ofname, 255, "device_output_%04d.particles", i);
+    //    std::ofstream out(ofname);
 
-        advectParticles(p_d, wd_d, 0);
-        ParticlesPrint(p_d, out);
-        out.close();
-    }
+    //    advectParticles(p_d, wd_d, 0);
+    //    ParticlesPrint(p_d, out);
+    //    out.close();
+    //}
 
     return 0;
 }
