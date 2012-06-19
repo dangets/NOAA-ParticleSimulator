@@ -177,7 +177,7 @@ int main(int argc, char *argv[])
     // create a particle source
     ParticleSource src(
             20,  20,   13,  // position
-             0, 500, 2000,  // start, stop, rate
+             0, 800, 2000,  // start, stop, rate
              1,   1,    1   // dx, dy, dz
         );
 
@@ -248,6 +248,10 @@ int main(int argc, char *argv[])
         // Clear the screen
         glClear(GL_COLOR_BUFFER_BIT);
 
+        glEnable(GL_POINT_SPRITE);
+        glTexEnvi(GL_POINT_SPRITE, GL_COORD_REPLACE, GL_TRUE);
+        glEnable(GL_VERTEX_PROGRAM_POINT_SIZE);
+
         // use setup shaders
         glUseProgram(programID);
 
@@ -278,6 +282,9 @@ int main(int argc, char *argv[])
         // draw the shape
         glDrawArrays(GL_POINTS, 0, (*g_ogl_particles).length);
         glDisableVertexAttribArray(0);
+
+        glUseProgram(0);
+        glDisable(GL_POINT_SPRITE);
 
         // swap buffers
         glfwSwapBuffers();
