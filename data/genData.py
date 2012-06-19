@@ -3,7 +3,7 @@ import math
 import sys
 
 
-def genDataSphere(ofile, numx, numy, numz, numt):
+def genCylinder(ofile, numx, numy, numz, numt):
     ofile.write(" ".join([str(numx), str(numy), str(numz), str(numt)]))
     ofile.write("\n")
 
@@ -22,14 +22,11 @@ def genDataSphere(ofile, numx, numy, numz, numt):
                     xlen = x - cx
                     x2 = xlen * xlen
 
-                    r = math.sqrt(x2 + y2 + z2)
-                    theta = math.atan2(ylen, xlen)
-
-                    u = r * -math.sin(theta)
-                    v = r * math.cos(theta)
+                    u = -ylen
+                    v = xlen
                     w = 0.0
 
-                    ofile.write("%5.2f %5.2f %5.2f " % (u, v, w))
+                    ofile.write("%f %f %f " % (u, v, w))
                 ofile.write("\n")
             ofile.write("\n")
 
@@ -54,7 +51,7 @@ def genOutwardSpiral(ofile, numx, numy, numz, numt):
                     v = ylen - xlen
                     w = 0.0
 
-                    ofile.write("%5.2f %5.2f %5.2f " % (u, v, w))
+                    ofile.write("%f %f %f " % (u, v, w))
                 ofile.write("\n")
             ofile.write("\n")
 
@@ -81,13 +78,14 @@ def genMiscCurve(ofile, numx, numy, numz, numt):
                     v = -2 * xlen * ylen
                     w = 0.0
 
-                    ofile.write("%5.2f %5.2f %5.2f " % (u, v, w))
+                    ofile.write("%f %f %f " % (u, v, w))
                 ofile.write("\n")
             ofile.write("\n")
 
 
 
 if __name__ == "__main__":
+    genCylinder(sys.stdout, 64, 64, 16, 1)
     #genOutwardSpiral(sys.stdout, 64, 64, 16, 1)
-    genMiscCurve(sys.stdout, 64, 64, 16, 1)
+    #genMiscCurve(sys.stdout, 64, 64, 16, 1)
 

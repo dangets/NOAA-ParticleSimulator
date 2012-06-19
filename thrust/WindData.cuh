@@ -48,7 +48,7 @@ struct DeviceWindData {
     { }
 
     template<typename WindData>
-    DeviceWindData(WindData &wd) :
+    DeviceWindData(const WindData &wd) :
         num_x(wd.num_x), num_y(wd.num_y), num_z(wd.num_z), num_t(wd.num_t),
         num_cells(wd.num_cells),
         u(num_cells), v(num_cells), w(num_cells)
@@ -81,7 +81,7 @@ struct DeviceWindData {
 
 struct AdvectFunctor {
     template <typename WindData>
-    AdvectFunctor(const WindData &wd, const float &t_) :
+    AdvectFunctor(const WindData &wd, const time_t &t_) :
         u(thrust::raw_pointer_cast(&wd.u[0])),
         v(thrust::raw_pointer_cast(&wd.v[0])),
         w(thrust::raw_pointer_cast(&wd.w[0])),
@@ -92,7 +92,7 @@ struct AdvectFunctor {
     const float *v;
     const float *w;
 
-    const float t;
+    const time_t t;
 
     const std::size_t num_x;
     const std::size_t num_y;
@@ -101,7 +101,8 @@ struct AdvectFunctor {
 
     __host__ __device__
     size_t get_index(size_t x, size_t y, size_t z, size_t t) const {
-        return x + y * num_x + z * num_y * num_x + t * num_x * num_y * num_z;
+        // TODO: hardcoded t to 0 for development ~v~~~~~~~~~
+        return x + y * num_x + z * num_y * num_x + 0 * num_x * num_y * num_z;
     }
 
     template <typename Tuple>
@@ -111,6 +112,13 @@ struct AdvectFunctor {
         float &x = thrust::get<0>(tup);
         float &y = thrust::get<1>(tup);
         float &z = thrust::get<2>(tup);
+        time_t &birthtime = thrust::get<3>(tup);
+        bool &has_deposited = thrust::get<4>(tup);
+
+        if (birthtime > t)
+            return;
+        if (has_deposited)
+            return;
 
         float x_d = x - (size_t)x;  // distance from point's x to prev x measurement
         float y_d = y - (size_t)y;
@@ -158,11 +166,11 @@ struct AdvectFunctor {
         z += 0.05f * (c0 * (1 - z_d) + c1 * z_d);
 
         if (x < 0 || x > num_x)
-            x = num_x / 2;
+            has_deposited = true;
         if (y < 0 || y > num_y)
-            y = num_y / 2;
+            has_deposited = true;
         if (z < 0 || z > num_z)
-            z = num_z / 2;
+            has_deposited = true;
     }
 };
 
@@ -171,8 +179,12 @@ template <typename Particles, typename WindData>
 void advectParticles(Particles &p, WindData &wd, float t)
 {
     thrust::for_each(
-        thrust::make_zip_iterator(thrust::make_tuple(p.pos_x.begin(), p.pos_y.begin(), p.pos_z.begin())),
-        thrust::make_zip_iterator(thrust::make_tuple(p.pos_x.end(), p.pos_y.end(), p.pos_z.end())),
+        thrust::make_zip_iterator(thrust::make_tuple(
+                p.pos_x.begin(), p.pos_y.begin(), p.pos_z.begin(),
+                p.birthtime.begin(), p.has_deposited.begin())),
+        thrust::make_zip_iterator(thrust::make_tuple(
+                p.pos_x.end(), p.pos_y.end(), p.pos_z.end(),
+                p.birthtime.end(), p.has_deposited.end())),
         AdvectFunctor(wd, t)
     );
 }

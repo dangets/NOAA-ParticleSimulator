@@ -42,8 +42,6 @@ int main(int argc, const char *argv[])
     size_t num_particles = 500;
     size_t num_timesteps = 100;
 
-    WindData<thrust::host_vector<float> >
-
     HostWindData wd_h = WindDataFromASCII(argv[1]);
     DeviceWindData wd_d(wd_h);
 

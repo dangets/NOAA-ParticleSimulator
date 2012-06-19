@@ -1,16 +1,24 @@
 
 #include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
-#include "Particles.cuh"
 
+#include "ParticleSource.hpp"
+#include "Particles.cuh"
 
 
 int main(int argc, const char *argv[])
 {
-    Particles< thrust::host_vector<float> >   hp(16);
-    Particles< thrust::device_vector<float> > dp(16);
+    ParticleSource src(11, 12, 13, 0, 8, 3);
 
-    ParticlesRandomizePosition(hp, 0, 64, 0, 64, 0, 16);
+    HostParticles hp(src.lifetimeParticlesReleased());
+    DeviceParticles dp(src.lifetimeParticlesReleased());
+
+    //ParticlesRandomizePosition(hp, 0, 64, 0, 64, 0, 16);
+    //ParticlesPrint(hp, std::cout);
+    //std::cout << "-----------------" << std::endl;
+
+    ParticlesFillPosition(hp, src.pos_x, src.pos_y, src.pos_z);
+    ParticlesFillBirthTime(hp, src.release_start, src.release_stop, src.release_rate);
     ParticlesPrint(hp, std::cout);
     std::cout << "-----------------" << std::endl;
 
@@ -18,15 +26,8 @@ int main(int argc, const char *argv[])
     ParticlesPrint(dp, std::cout);
     std::cout << "-----------------" << std::endl;
 
-    ParticlesFillPosition(hp, 1.1, 2.2, 3.3);
-    ParticlesPrint(hp, std::cout);
+    ParticlesPrintActive(hp, std::cout, 3);
     std::cout << "-----------------" << std::endl;
-
-    // fill the host particles in sequence
-    //ParticlesFillSequence(hp);
-    // copy particles to device
-    //dp = hp;
-    //hp.print(std::cout);
 
     return 0;
 }

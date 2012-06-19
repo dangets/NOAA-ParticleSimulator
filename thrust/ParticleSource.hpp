@@ -20,11 +20,17 @@ struct ParticleSource {
     const time_t release_stop;  // seconds
     const float  release_rate;  // particles / second
 
+    float dx;
+    float dy;
+    float dz;
+
     // constructor
     ParticleSource(float x, float y, float z,
-            time_t start, time_t stop, float rate) :
+            time_t start, time_t stop, float rate,
+            float dx=0.1f, float dy=0.1f, float dz=0.1f) :
         pos_x(x), pos_y(y), pos_z(z),
-        release_start(start), release_stop(stop), release_rate(rate)
+        release_start(start), release_stop(stop), release_rate(rate),
+        dx(dx), dy(dy), dz(dz)
     {
         if (release_start >= release_stop) {
             throw std::invalid_argument("stop must be > start");
@@ -35,7 +41,7 @@ struct ParticleSource {
     }
 
     // returns the number of particles released over source lifetime
-    size_t lifetimeParticlesReleased() {
+    size_t lifetimeParticlesReleased() const {
         return (size_t) ((release_stop - release_start) * release_rate);
     }
 };
