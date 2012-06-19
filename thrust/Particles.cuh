@@ -100,18 +100,21 @@ struct DeviceParticles {
 struct OpenGLParticleCopy {
     template <typename Tuple>
     __host__ __device__
-    float4 operator()(Tuple tup) const {
-        return make_float4(
+    float3 operator()(Tuple tup) const {
+        return make_float3(
                 thrust::get<0>(tup),
                 thrust::get<1>(tup),
-                thrust::get<2>(tup),
-                1.0f
+                thrust::get<2>(tup)
         );
     }
 };
 
 
 struct OpenGLParticles {
+    size_t length;
+    GLuint pos_vbo;
+    cudaGraphicsResource *pos_cvbo;
+
     OpenGLParticles(size_t length_) :
         length(length_)
     {
@@ -140,17 +143,13 @@ struct OpenGLParticles {
         glDeleteBuffers(1, &pos_vbo);
     }
 
-    size_t length;
-    GLuint pos_vbo;
-    cudaGraphicsResource *pos_cvbo;
-
     void copy(const DeviceParticles &p) {
-        float4 *raw_ptr;
+        float3 *raw_ptr;
         size_t buf_size;
 
         mapCUDA();
         cudaGraphicsResourceGetMappedPointer((void **)&raw_ptr, &buf_size, pos_cvbo);
-        thrust::device_ptr<float4> dev_ptr = thrust::device_pointer_cast(raw_ptr);
+        thrust::device_ptr<float3> dev_ptr = thrust::device_pointer_cast(raw_ptr);
 
         thrust::transform(
             thrust::make_zip_iterator(thrust::make_tuple(p.pos_x.begin(), p.pos_y.begin(), p.pos_z.begin())),

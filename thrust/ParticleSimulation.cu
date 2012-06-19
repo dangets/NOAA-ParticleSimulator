@@ -4,8 +4,12 @@
 #include <iostream>
 
 #include <GL/glew.h>
-#include <GL/freeglut.h>
+#include <GL/glfw.h>
 
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
+#include "loadShaders.hpp"
 #include "ParticleSource.hpp"
 #include "Particles.cuh"
 #include "WindData.cuh"
@@ -15,15 +19,29 @@ using std::time_t;
 
 /// ----------------------------------------------
 // constants
-const unsigned int g_window_width = 512;
-const unsigned int g_window_height = 512;
+//static const unsigned int g_window_width = 512;
+//static const unsigned int g_window_height = 512;
+
+static glm::vec3 g_pos = glm::vec3(32.0f, 32.0f, 75.0f);
+static glm::mat4 g_viewMat;
+static glm::mat4 g_projMat = glm::perspective(60.0f, 4.0f/3.0f, 0.1f, 100.0f);
+
+
+inline glm::mat4 getViewMatrix() {
+    return g_viewMat;
+}
+
+inline glm::mat4 getProjectionMatrix() {
+    return g_projMat;
+}
 
 // mouse controls
-int g_mouse_old_x, g_mouse_old_y;
-int g_mouse_buttons = 0;
-float g_rotate_x = 0.0;
-float g_rotate_y = 0.0;
-float g_translate_z = -3.0;
+//static int g_mouse_old_x;
+//static int g_mouse_old_y;
+//static int g_mouse_buttons = 0;
+//static float g_rotate_x = 0.0;
+//static float g_rotate_y = 0.0;
+
 
 DeviceParticles *g_dev_particles;
 DeviceWindData *g_dev_wind;
@@ -31,119 +49,36 @@ OpenGLParticles *g_ogl_particles;
 time_t g_t = 0;
 
 
-void display(void)
-{
-    if (g_dev_particles == NULL) {
-        return;
-    }
-
-    advectParticles(*g_dev_particles, *g_dev_wind, g_t);
-
-    (*g_ogl_particles).copy(*g_dev_particles);
-
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    // set view matrix
-    glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity();
-    glTranslatef(0.0, 0.0, g_translate_z);
-    glRotatef(g_rotate_x, 1.0, 0.0, 0.0);
-    glRotatef(g_rotate_y, 0.0, 1.0, 0.0);
-
-    // render from the vbo
-    glBindBuffer(GL_ARRAY_BUFFER, (*g_ogl_particles).pos_vbo);
-    glVertexPointer(4, GL_FLOAT, 0, 0);
-
-    glEnableClientState(GL_VERTEX_ARRAY);
-    glColor3f(1.0, 0.0, 0.0);
-    glDrawArrays(GL_POINTS, 0, (*g_ogl_particles).length);
-    glDisableClientState(GL_VERTEX_ARRAY);
-
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-    glutSwapBuffers();
-    glutPostRedisplay();
-
-    g_t += 1;
-}
-
-
-void mouse(int button, int state, int x, int y)
-{
-    if (state == GLUT_DOWN) {
-        g_mouse_buttons |= 1<<button;
-    } else if(state == GLUT_UP) {
-        g_mouse_buttons = 0;
-    }
-
-    g_mouse_old_x = x;
-    g_mouse_old_y = y;
-
-    glutPostRedisplay();
-}
-
-
-void motion(int x, int y)
-{
-    float dx, dy;
-    dx = x - g_mouse_old_x;
-    dy = y - g_mouse_old_y;
-
-    if(g_mouse_buttons & 1) {
-        g_rotate_x += dy * 0.2;
-        g_rotate_y += dx * 0.2;
-    } else if (g_mouse_buttons & 4) {
-        g_translate_z += dy * 0.01;
-    }
-
-    g_mouse_old_x = x;
-    g_mouse_old_y = y;
-}
-
-
-void keyboard(unsigned char key, int, int)
-{
-    switch(key) {
-        case (27):
-            exit(0);
-        default:
-            break;
-    }
-}
-
-
 void initGL(int argc, char** argv)
 {
-    // Create GL context
-    glutInit(&argc, argv);
+    // initialize glfw
+    if (!glfwInit()) {
+        throw std::runtime_error("Couldn't initialize glfw");
+    }
 
-    glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE);
-    glutInitWindowSize(g_window_width, g_window_height);
-    glutCreateWindow("Thrust/GL interop");
+    glfwOpenWindowHint(GLFW_FSAA_SAMPLES, 4);   // 4x antialiasing
+    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 3);
+    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 3);
+    glfwOpenWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    GLenum glewInitResult = glewInit();
-    if (glewInitResult != GLEW_OK) {
+    // open a window and create its opengl context
+    if (!glfwOpenWindow(1024, 768, 0, 0, 0, 0, 32, 0, GLFW_WINDOW)) {
+        fprintf(stderr, "Failed to open GLFW window\n");
+        glfwTerminate();
+    }
+
+    // initialize GLEW
+    glewExperimental = GL_TRUE;
+    if (glewInit() != GLEW_OK) {
         throw std::runtime_error("Couldn't initialize GLEW");
     }
 
+    glfwSetWindowTitle("Particle Simulation");
+
     // initialize GL
-    glClearColor(0.0, 0.0, 0.0, 1.0);
+    glClearColor(0.0f, 0.0f, 0.1f, 0.0f);
     glDisable(GL_DEPTH_TEST);
-
-    // viewport
-    glViewport(0, 0, g_window_width, g_window_height);
-
-    // projection
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-    gluPerspective(60.0, (GLfloat)g_window_width / (GLfloat)g_window_height, 0.1, 100.0);
-    gluLookAt(32.0f, 32.0f, 75.0f,
-              32.0f, 32.0f, 0.0f,
-              0.0f, 1.0f, 0.0f);
-
-    
 }
-
 
 
 
@@ -210,23 +145,28 @@ int main(int argc, char *argv[])
     initGL(argc, argv);
     cudaGLSetGLDevice(0);
 
-    // register callbacks
-    glutDisplayFunc(display);
-    glutKeyboardFunc(keyboard);
-    glutMouseFunc(mouse);
-    glutMotionFunc(motion);
+    // Create and compile our GLSL program from the shaders
+    GLuint programID = loadShaders("simpleVertexShader.vert.glsl", "simpleFragmentShader.frag.glsl");
+
+    // send the mvpMat to GLSL code
+    GLuint shaderMVP = glGetUniformLocation(programID, "MVP");
+
+    g_viewMat = glm::lookAt(
+            g_pos,
+            glm::vec3(32.0f, 32.0f, 0.0f),
+            glm::vec3(0.0f, 1.0f, 0.0f)
+    );
+    g_projMat = glm::perspective(60.0f, 4.0f/3.0f, 0.1f, 100.0f);
 
     //////////////////////////////////////////////////////////
 
-    cudaEvent_t time1cuda, time2cuda;
-    float elapsedTimeCuda;
+    //cudaEvent_t time1cuda, time2cuda;
+    //float elapsedTimeCuda;
+    //timespec time1c, time2c, elapsedTimeC;
+    //cudaEventCreate(&time1cuda);
+    //cudaEventCreate(&time2cuda);
 
-    timespec time1c, time2c, elapsedTimeC;
-
-    int num_timesteps = 1000;
-
-    cudaEventCreate(&time1cuda);
-    cudaEventCreate(&time2cuda);
+    //int num_timesteps = 1000;
 
     // read wind data from file
     HostWindData host_wind = WindDataFromASCII(argv[1]);
@@ -237,7 +177,7 @@ int main(int argc, char *argv[])
     // create a particle source
     ParticleSource src(
             20,  20,   13,  // position
-             0, 800, 2000,  // start, stop, rate
+             0, 500, 2000,  // start, stop, rate
              1,   1,    1   // dx, dy, dz
         );
 
@@ -295,7 +235,60 @@ int main(int argc, char *argv[])
 
     g_ogl_particles = new OpenGLParticles(g_dev_particles->length);
     // start rendering mainloop
-    glutMainLoop();
+
+    // ensure we can capture the escape key being pressed below
+    glfwEnable(GLFW_STICKY_KEYS);
+    glfwEnable(GLFW_STICKY_MOUSE_BUTTONS);
+
+    do {
+        // step the simulation
+        advectParticles(*g_dev_particles, *g_dev_wind, g_t);
+        (*g_ogl_particles).copy(*g_dev_particles);
+
+        // Clear the screen
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        // use setup shaders
+        glUseProgram(programID);
+
+        // update model-view-projection matrix
+        //computeMatricesFromInputs();
+        glm::mat4 projMat = getProjectionMatrix();
+        glm::mat4 viewMat = getViewMatrix();
+        glm::mat4 modelMat = glm::mat4(1.0f);
+        glm::mat4 mvpMat = projMat * viewMat * modelMat;
+
+        // upload transformation to currently bound shader
+        glUniformMatrix4fv(shaderMVP, 1, GL_FALSE, &mvpMat[0][0]);
+
+        // render vertices (attribute 0 specified in shader)
+        glEnableVertexAttribArray(0);
+        glBindBuffer(GL_ARRAY_BUFFER, (*g_ogl_particles).pos_vbo);
+
+        // 1st attribute buffer: vertices
+        glVertexAttribPointer(
+                0,          // attribute 0 (no particular reason)
+                3,          // size
+                GL_FLOAT,   // type
+                GL_FALSE,   // normalized?
+                0,          // stride
+                (void *)0   // array buffer offset
+        );
+
+        // draw the shape
+        glDrawArrays(GL_POINTS, 0, (*g_ogl_particles).length);
+        glDisableVertexAttribArray(0);
+
+        // swap buffers
+        glfwSwapBuffers();
+        g_t += 1;
+    } while (glfwGetKey(GLFW_KEY_ESC) != GLFW_PRESS && glfwGetWindowParam(GLFW_OPENED));
+
+	glDeleteProgram(programID);
+    delete g_ogl_particles;
+
+    // Close OpenGL window and terminate GLFW
+    glfwTerminate();
 
     return 0;
 }
