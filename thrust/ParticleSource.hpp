@@ -1,6 +1,7 @@
 #ifndef PARTICLESOURCE_HPP
 #define PARTICLESOURCE_HPP
 
+#include <string>
 #include <ctime>
 #include <stdexcept>
 
@@ -9,16 +10,16 @@ using std::size_t;
 
 
 struct ParticleSource {
-    int id;
+    std::string id;
     // particle_type...
 
     float pos_x;
     float pos_y;
     float pos_z;
 
-    const time_t release_start; // seconds
-    const time_t release_stop;  // seconds
-    const float  release_rate;  // particles / second
+    time_t release_start; // seconds
+    time_t release_stop;  // seconds
+    float  release_rate;  // particles / second
 
     float dx;
     float dy;
@@ -39,6 +40,12 @@ struct ParticleSource {
             throw std::invalid_argument("release rate must be positive");
         }
     }
+
+    // copy constructor
+    ParticleSource(const ParticleSource &ps) :
+        pos_x(ps.pos_x), pos_y(ps.pos_y), pos_z(ps.pos_z),
+        release_start(ps.release_start), release_stop(ps.release_stop), release_rate(ps.release_rate),
+        dx(ps.dx), dy(ps.dy), dz(ps.dz) { }
 
     // returns the number of particles released over source lifetime
     size_t lifetimeParticlesReleased() const {

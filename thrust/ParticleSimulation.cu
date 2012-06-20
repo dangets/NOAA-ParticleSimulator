@@ -9,6 +9,8 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
+#include "Config.hpp"
+#include "ConfigJSON.hpp"
 #include "loadShaders.hpp"
 #include "ParticleSource.hpp"
 #include "Particles.cuh"
@@ -84,26 +86,6 @@ void initGL(int argc, char** argv)
 
 /// ----------------------------------------------
 
-HostParticles createParticlesFromSource(const ParticleSource &src)
-{
-    // create particles of number of lifetime particles
-    HostParticles host_particles(src.lifetimeParticlesReleased());
-
-    // initialize position and birth times from source info
-    // set position to randomly within the source cube
-    ParticlesRandomizePosition(host_particles,
-            src.pos_x - src.dx, src.pos_x + src.dx,
-            src.pos_y - src.dy, src.pos_y + src.dy,
-            src.pos_z - src.dz, src.pos_z + src.dz
-    );
-
-    // initialize the birth times based on rate of release
-    ParticlesFillBirthTime(host_particles, src.release_start, src.release_stop, src.release_rate);
-
-    return host_particles;
-}
-
-
 template <typename Particles>
 void initializeParticlesFromSource(Particles &p, const ParticleSource &src)
 {
@@ -140,6 +122,9 @@ int main(int argc, char *argv[])
         std::exit(1);
     }
 
+    std::ifstream cfg_file("config.json");
+    Config cfg = ConfigFromJSON(cfg_file);
+
     //////////////////////////////////////////////////////////
 
     initGL(argc, argv);
@@ -175,11 +160,7 @@ int main(int argc, char *argv[])
     DeviceWindData dev_wind(host_wind);
 
     // create a particle source
-    ParticleSource src(
-            20,  20,   13,  // position
-             0, 800, 2000,  // start, stop, rate
-             1,   1,    1   // dx, dy, dz
-        );
+    ParticleSource &src = cfg.particle_sources[0];
 
     // create particles array on host of total particles released by source
     //HostParticles host_particles(src.lifetimeParticlesReleased());
@@ -246,7 +227,8 @@ int main(int argc, char *argv[])
         (*g_ogl_particles).copy(*g_dev_particles);
 
         // Clear the screen
-        glClear(GL_COLOR_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        //glEnable(GL_DEPTH_TEST);  // TODO: measure performance of depth test enabled...
 
         glEnable(GL_POINT_SPRITE);
         glTexEnvi(GL_POINT_SPRITE, GL_COORD_REPLACE, GL_TRUE);
@@ -284,7 +266,9 @@ int main(int argc, char *argv[])
         glDisableVertexAttribArray(0);
 
         glUseProgram(0);
+        glDisable(GL_VERTEX_PROGRAM_POINT_SIZE);
         glDisable(GL_POINT_SPRITE);
+        //glDisable(GL_DEPTH_TEST);
 
         // swap buffers
         glfwSwapBuffers();
