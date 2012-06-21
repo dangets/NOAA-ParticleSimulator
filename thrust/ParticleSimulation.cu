@@ -45,9 +45,6 @@ inline glm::mat4 getProjectionMatrix() {
 //static float g_rotate_y = 0.0;
 
 
-DeviceParticles *g_dev_particles;
-DeviceWindData *g_dev_wind;
-OpenGLParticles *g_ogl_particles;
 time_t g_t = 0;
 
 
@@ -168,9 +165,6 @@ int main(int argc, char *argv[])
     initializeParticlesFromSource(dev_particles, src);
     //dev_particles = host_particles;
 
-    g_dev_particles = &dev_particles;
-    g_dev_wind = &dev_wind;
-
     //std::printf("running on host -----------------------\n");
     //cudaEventRecord(time1cuda, 0);
     //clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time1c);
@@ -214,17 +208,51 @@ int main(int argc, char *argv[])
     //cudaEventDestroy(time1cuda);
     //cudaEventDestroy(time2cuda);
 
-    g_ogl_particles = new OpenGLParticles(g_dev_particles->length);
-    // start rendering mainloop
+    OpenGLParticles ogl_particles(dev_particles.length);
 
     // ensure we can capture the escape key being pressed below
     glfwEnable(GLFW_STICKY_KEYS);
     glfwEnable(GLFW_STICKY_MOUSE_BUTTONS);
 
-    do {
+    // start rendering mainloop
+    while (true) {
+        bool breakloop = false;
+        // loop break events
+        if (glfwGetKey(GLFW_KEY_ESC) == GLFW_PRESS)
+            breakloop = true;
+        if (!glfwGetWindowParam(GLFW_OPENED))
+            breakloop = true;
+
+        // pause on spacebar (somewhat hackish)
+        if (glfwGetKey(GLFW_KEY_SPACE) == GLFW_PRESS) {
+            glfwSleep(0.1);
+            while (glfwGetKey(GLFW_KEY_SPACE) != GLFW_RELEASE) {
+                glfwPollEvents();
+            }
+
+            // key is released, wait for it to be pressed again
+            while (glfwGetKey(GLFW_KEY_SPACE) == GLFW_RELEASE) {
+                if (glfwGetKey(GLFW_KEY_ESC) == GLFW_PRESS) {
+                    breakloop = true;
+                    break;
+                }
+
+                glfwWaitEvents();
+            }
+
+            // wait for it to be released again
+            glfwSleep(0.1);
+            while (glfwGetKey(GLFW_KEY_SPACE) != GLFW_RELEASE) {
+                glfwPollEvents();
+            }
+        }
+
+        if (breakloop)
+            break;
+
         // step the simulation
-        advectParticles(*g_dev_particles, *g_dev_wind, g_t);
-        (*g_ogl_particles).copy(*g_dev_particles);
+        advectParticles(dev_particles, dev_wind, g_t);
+        ogl_particles.copy(dev_particles);
 
         // Clear the screen
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -249,7 +277,7 @@ int main(int argc, char *argv[])
 
         // render vertices (attribute 0 specified in shader)
         glEnableVertexAttribArray(0);
-        glBindBuffer(GL_ARRAY_BUFFER, (*g_ogl_particles).pos_vbo);
+        glBindBuffer(GL_ARRAY_BUFFER, ogl_particles.pos_vbo);
 
         // 1st attribute buffer: vertices
         glVertexAttribPointer(
@@ -262,7 +290,7 @@ int main(int argc, char *argv[])
         );
 
         // draw the shape
-        glDrawArrays(GL_POINTS, 0, (*g_ogl_particles).length);
+        glDrawArrays(GL_POINTS, 0, ogl_particles.length);
         glDisableVertexAttribArray(0);
 
         glUseProgram(0);
@@ -273,10 +301,9 @@ int main(int argc, char *argv[])
         // swap buffers
         glfwSwapBuffers();
         g_t += 1;
-    } while (glfwGetKey(GLFW_KEY_ESC) != GLFW_PRESS && glfwGetWindowParam(GLFW_OPENED));
+    }
 
 	glDeleteProgram(programID);
-    delete g_ogl_particles;
 
     // Close OpenGL window and terminate GLFW
     glfwTerminate();

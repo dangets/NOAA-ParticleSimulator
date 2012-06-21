@@ -1,6 +1,7 @@
 #ifndef WINDDATA_CUH
 #define WINDDATA_CUH
 
+#include <cstddef>
 #include <fstream>
 
 #include <thrust/host_vector.h>
@@ -12,22 +13,37 @@
 #include "Particles.cuh"
 
 
+using std::size_t;
+
+
+
 struct HostWindData {
+    const size_t num_x;
+    const size_t num_y;
+    const size_t num_z;
+    const size_t num_t;
+    const size_t num_cells;
+
+    thrust::host_vector<float> u;
+    thrust::host_vector<float> v;
+    thrust::host_vector<float> w;
+
     HostWindData(size_t x, size_t y, size_t z, size_t t) :
         num_x(x), num_y(y), num_z(z), num_t(t),
         num_cells(x * y * z * t),
         u(num_cells), v(num_cells), w(num_cells)
     { }
 
-    const std::size_t num_x;
-    const std::size_t num_y;
-    const std::size_t num_z;
-    const std::size_t num_t;
-    const std::size_t num_cells;
-
-    thrust::host_vector<float> u;
-    thrust::host_vector<float> v;
-    thrust::host_vector<float> w;
+    template<typename WindData>
+    HostWindData(const WindData &wd) :
+        num_x(wd.num_x), num_y(wd.num_y), num_z(wd.num_z), num_t(wd.num_t),
+        num_cells(wd.num_cells),
+        u(num_cells), v(num_cells), w(num_cells)
+    {
+        u = wd.u;
+        v = wd.v;
+        w = wd.w;
+    }
 
     template <typename WindData>
     HostWindData& operator=(const WindData &other) {
@@ -41,6 +57,16 @@ struct HostWindData {
 
 
 struct DeviceWindData {
+    const size_t num_x;
+    const size_t num_y;
+    const size_t num_z;
+    const size_t num_t;
+    const size_t num_cells;
+
+    thrust::device_vector<float> u;
+    thrust::device_vector<float> v;
+    thrust::device_vector<float> w;
+
     DeviceWindData(size_t x, size_t y, size_t z, size_t t) :
         num_x(x), num_y(y), num_z(z), num_t(t),
         num_cells(x * y * z * t),
@@ -58,16 +84,6 @@ struct DeviceWindData {
         w = wd.w;
     }
 
-    const std::size_t num_x;
-    const std::size_t num_y;
-    const std::size_t num_z;
-    const std::size_t num_t;
-    const std::size_t num_cells;
-
-    thrust::device_vector<float> u;
-    thrust::device_vector<float> v;
-    thrust::device_vector<float> w;
-
     template <typename WindData>
     DeviceWindData& operator=(const WindData &other) {
         u = other.u;
@@ -77,6 +93,9 @@ struct DeviceWindData {
         return *this;
     }
 };
+
+
+
 
 
 struct AdvectFunctor {
@@ -94,13 +113,13 @@ struct AdvectFunctor {
 
     const time_t t;
 
-    const std::size_t num_x;
-    const std::size_t num_y;
-    const std::size_t num_z;
-    const std::size_t num_t;
+    const size_t num_x;
+    const size_t num_y;
+    const size_t num_z;
+    const size_t num_t;
 
     __host__ __device__
-    size_t get_index(size_t x, size_t y, size_t z, size_t t) const {
+    inline size_t get_index(size_t x, size_t y, size_t z, size_t t) const {
         // TODO: hardcoded t to 0 for development ~v~~~~~~~~~
         return x + y * num_x + z * num_y * num_x + 0 * num_x * num_y * num_z;
     }
@@ -143,7 +162,7 @@ struct AdvectFunctor {
 
         // TODO: NOTE the 0.05f is equiv to conversion between velocity and cell size
         // TODO: will also have to interpolate between time steps as well
-        x += 0.05f * (c0 * (1 - z_d) + c1 * z_d);
+        x += (c0 * (1 - z_d) + c1 * z_d);
 
         c00 = v[i000] * (1 - x_d) + v[i100] * x_d;
         c10 = v[i010] * (1 - x_d) + v[i110] * x_d;
@@ -153,7 +172,7 @@ struct AdvectFunctor {
         c0 = c00 * (1 - y_d) + c10 * y_d;
         c1 = c01 * (1 - y_d) + c11 * y_d;
 
-        y += 0.05f * (c0 * (1 - z_d) + c1 * z_d);
+        y += (c0 * (1 - z_d) + c1 * z_d);
 
         c00 = w[i000] * (1 - x_d) + w[i100] * x_d;
         c10 = w[i010] * (1 - x_d) + w[i110] * x_d;
@@ -163,7 +182,7 @@ struct AdvectFunctor {
         c0 = c00 * (1 - y_d) + c10 * y_d;
         c1 = c01 * (1 - y_d) + c11 * y_d;
 
-        z += 0.05f * (c0 * (1 - z_d) + c1 * z_d);
+        z += (c0 * (1 - z_d) + c1 * z_d);
 
         if (x < 0 || x > num_x)
             has_deposited = true;
