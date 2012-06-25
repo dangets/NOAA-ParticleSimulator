@@ -19,15 +19,34 @@
 using std::time_t;
 
 
-/// ----------------------------------------------
-// constants
-//static const unsigned int g_window_width = 512;
-//static const unsigned int g_window_height = 512;
+// Don't instantiate this class directly...
+//  use the HostParticleSimulation and DeviceParticleSimulation typedefs below
+template<typename Particles, typename WindData>
+struct ParticleSimulation {
+    ParticleSimulation(time_t cur_step=0) :
+        cur_step(cur_step) { }
+
+    WindData *wind;
+    Particles *particles;
+    time_t cur_step;
+
+    void step() {
+        advectParticles(*particles, *wind, cur_step);
+        ++cur_step;
+    }
+
+    // helper functions (not local methods):
+    //  dump particles to disk
+    //  display particles in opengl
+};
+
+typedef ParticleSimulation<HostParticles,   HostWindData>   HostParticleSimulation;
+typedef ParticleSimulation<DeviceParticles, DeviceWindData> DeviceParticleSimulation;
+
 
 static glm::vec3 g_pos = glm::vec3(32.0f, 32.0f, 75.0f);
 static glm::mat4 g_viewMat;
 static glm::mat4 g_projMat = glm::perspective(60.0f, 4.0f/3.0f, 0.1f, 100.0f);
-
 
 inline glm::mat4 getViewMatrix() {
     return g_viewMat;
@@ -36,16 +55,6 @@ inline glm::mat4 getViewMatrix() {
 inline glm::mat4 getProjectionMatrix() {
     return g_projMat;
 }
-
-// mouse controls
-//static int g_mouse_old_x;
-//static int g_mouse_old_y;
-//static int g_mouse_buttons = 0;
-//static float g_rotate_x = 0.0;
-//static float g_rotate_y = 0.0;
-
-
-time_t g_t = 0;
 
 
 void initGL(int argc, char** argv)
@@ -80,7 +89,6 @@ void initGL(int argc, char** argv)
 }
 
 
-
 /// ----------------------------------------------
 
 template <typename Particles>
@@ -97,20 +105,6 @@ void initializeParticlesFromSource(Particles &p, const ParticleSource &src)
 }
 
 
-timespec diff(timespec start, timespec end)
-{
-    timespec temp;
-    if ((end.tv_nsec-start.tv_nsec)<0) {
-        temp.tv_sec = end.tv_sec-start.tv_sec-1;
-        temp.tv_nsec = 1000000000+end.tv_nsec-start.tv_nsec;
-    } else {
-        temp.tv_sec = end.tv_sec-start.tv_sec;
-        temp.tv_nsec = end.tv_nsec-start.tv_nsec;
-    }
-    return temp;
-}
-
-
 
 int main(int argc, char *argv[])
 {
@@ -119,96 +113,45 @@ int main(int argc, char *argv[])
         std::exit(1);
     }
 
-    std::ifstream cfg_file("config.json");
-    Config cfg = ConfigFromJSON(cfg_file);
-
-    //////////////////////////////////////////////////////////
-
     initGL(argc, argv);
     cudaGLSetGLDevice(0);
 
+    // read in expected config file
+    std::ifstream cfg_file("config.json");
+    Config cfg = ConfigFromJSON(cfg_file);
+
+    // create a particle source
+    ParticleSource &src = cfg.particle_sources[0];
+
+    // read wind data from file
+    HostWindData host_wind = WindDataFromASCII(argv[1]);
+    // create and copy wind data on device
+    DeviceWindData dev_wind(host_wind);
+
+    // create particles array on host of total particles released by source
+    //HostParticles host_particles(src.lifetimeParticlesReleased());
+    DeviceParticles dev_particles(src.lifetimeParticlesReleased());
+    initializeParticlesFromSource(dev_particles, src);
+
+    DeviceParticleSimulation sim;
+    sim.wind = &dev_wind;
+    sim.particles = &dev_particles;
+
+
+    //////////////////////////////////////////////////////////
     // Create and compile our GLSL program from the shaders
     GLuint programID = loadShaders("simpleVertexShader.vert.glsl", "simpleFragmentShader.frag.glsl");
 
     // send the mvpMat to GLSL code
     GLuint shaderMVP = glGetUniformLocation(programID, "MVP");
 
-    g_viewMat = glm::lookAt(
-            g_pos,
-            glm::vec3(32.0f, 32.0f, 0.0f),
-            glm::vec3(0.0f, 1.0f, 0.0f)
-    );
+    g_viewMat = glm::lookAt(g_pos,
+                            glm::vec3(32.0f, 32.0f, 0.0f),
+                            glm::vec3(0.0f, 1.0f, 0.0f));
     g_projMat = glm::perspective(60.0f, 4.0f/3.0f, 0.1f, 100.0f);
-
     //////////////////////////////////////////////////////////
 
-    //cudaEvent_t time1cuda, time2cuda;
-    //float elapsedTimeCuda;
-    //timespec time1c, time2c, elapsedTimeC;
-    //cudaEventCreate(&time1cuda);
-    //cudaEventCreate(&time2cuda);
-
-    //int num_timesteps = 1000;
-
-    // read wind data from file
-    HostWindData host_wind = WindDataFromASCII(argv[1]);
-
-    // create and copy wind data on device
-    DeviceWindData dev_wind(host_wind);
-
-    // create a particle source
-    ParticleSource &src = cfg.particle_sources[0];
-
-    // create particles array on host of total particles released by source
-    //HostParticles host_particles(src.lifetimeParticlesReleased());
-    DeviceParticles dev_particles(src.lifetimeParticlesReleased());
-    initializeParticlesFromSource(dev_particles, src);
-    //dev_particles = host_particles;
-
-    //std::printf("running on host -----------------------\n");
-    //cudaEventRecord(time1cuda, 0);
-    //clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time1c);
-    //for (time_t t=0; t<num_timesteps; t++) {
-    //    advectParticles(host_particles, host_wind, t);
-
-    //    //char ofname[256];
-    //    //std::snprintf(ofname, 255, "data/device_output_%04d.particles", (int)t);
-    //    //std::ofstream out(ofname);
-    //    //ParticlesPrintActive(dev_particles, out, t);
-    //    //out.close();
-    //}
-    //cudaEventRecord(time2cuda, 0);
-    //cudaEventSynchronize(time2cuda);
-    //cudaEventElapsedTime(&elapsedTimeCuda, time1cuda, time2cuda);
-    //clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time2c);
-    //elapsedTimeC = diff(time1c, time2c);
-    //std::printf("elapsedTimeC:    %ld:%ld\n", elapsedTimeC.tv_sec, elapsedTimeC.tv_nsec);
-    //std::printf("elapsedTimeCuda: %g\n", elapsedTimeCuda);
-
-    //std::printf("running on device ---------------------\n");
-    //cudaEventRecord(time1cuda, 0);
-    //clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time1c);
-    //for (time_t t=0; t<num_timesteps; t++) {
-    //    advectParticles(dev_particles, dev_wind, t);
-
-    //    //char ofname[256];
-    //    //std::snprintf(ofname, 255, "data/device_output_%04d.particles", (int)t);
-    //    //std::ofstream out(ofname);
-    //    //ParticlesPrintActive(dev_particles, out, t);
-    //    //out.close();
-    //}
-    //cudaEventRecord(time2cuda, 0);
-    //cudaEventSynchronize(time2cuda);
-    //cudaEventElapsedTime(&elapsedTimeCuda, time1cuda, time2cuda);
-    //clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time2c);
-    //elapsedTimeC = diff(time1c, time2c);
-    //std::printf("elapsedTimeC:    %ld:%ld\n", elapsedTimeC.tv_sec, elapsedTimeC.tv_nsec);
-    //std::printf("elapsedTimeCuda: %g\n", elapsedTimeCuda);
-
-    //cudaEventDestroy(time1cuda);
-    //cudaEventDestroy(time2cuda);
-
-    OpenGLParticles ogl_particles(dev_particles.length);
+    OpenGLParticles ogl_particles(sim.particles->length);
 
     // ensure we can capture the escape key being pressed below
     glfwEnable(GLFW_STICKY_KEYS);
@@ -241,7 +184,7 @@ int main(int argc, char *argv[])
             }
 
             // wait for it to be released again
-            glfwSleep(0.1);
+            glfwSleep(0.05);
             while (glfwGetKey(GLFW_KEY_SPACE) != GLFW_RELEASE) {
                 glfwPollEvents();
             }
@@ -251,22 +194,21 @@ int main(int argc, char *argv[])
             break;
 
         // step the simulation
-        advectParticles(dev_particles, dev_wind, g_t);
-        ogl_particles.copy(dev_particles);
+        sim.step();
+        ogl_particles.copy(*(sim.particles));
 
         // Clear the screen
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        //glEnable(GL_DEPTH_TEST);  // TODO: measure performance of depth test enabled...
+        //glEnable(GL_DEPTH_TEST);  // TODO: measure performance vs depth test enabled...
 
         glEnable(GL_POINT_SPRITE);
         glTexEnvi(GL_POINT_SPRITE, GL_COORD_REPLACE, GL_TRUE);
         glEnable(GL_VERTEX_PROGRAM_POINT_SIZE);
 
-        // use setup shaders
+        // tell OpenGL to use the shader program
         glUseProgram(programID);
 
         // update model-view-projection matrix
-        //computeMatricesFromInputs();
         glm::mat4 projMat = getProjectionMatrix();
         glm::mat4 viewMat = getViewMatrix();
         glm::mat4 modelMat = glm::mat4(1.0f);
@@ -300,11 +242,9 @@ int main(int argc, char *argv[])
 
         // swap buffers
         glfwSwapBuffers();
-        g_t += 1;
     }
 
 	glDeleteProgram(programID);
-
     // Close OpenGL window and terminate GLFW
     glfwTerminate();
 

@@ -18,9 +18,13 @@
 using std::size_t;
 using std::time_t;
 
-struct HostParticles {
+
+// This class was not meant to be instantiated as is -
+//  use the HostParticles and DeviceParticles typedefs defined below
+template<template <class, class> class Vector, template <class> class Alloc>
+struct GenericParticles {
     // constructor
-    HostParticles(size_t length_) :
+    GenericParticles(size_t length_) :
         length(length_),
         pos_x(length), pos_y(length), pos_z(length),
         birthtime(length, 0), has_deposited(length, false)
@@ -28,23 +32,23 @@ struct HostParticles {
 
     // constant across the group variables ---
     size_t length;
-    // type
     // source_id
+    // type
 
     // individual particle variables ---------
-    thrust::host_vector<float> pos_x;
-    thrust::host_vector<float> pos_y;
-    thrust::host_vector<float> pos_z;
+    Vector<float, Alloc<float> > pos_x;
+    Vector<float, Alloc<float> > pos_y;
+    Vector<float, Alloc<float> > pos_z;
     //Vector vel_u;
     //Vector vel_v;
     //Vector vel_w;
-    thrust::host_vector<time_t> birthtime;
-    thrust::host_vector<bool> has_deposited;
+    Vector<time_t, Alloc<time_t> > birthtime;
+    Vector<bool, Alloc<bool> > has_deposited;
     // ...
 
     // convenience functions -----------------
     template <typename TOther>
-    HostParticles& operator=(const TOther &other) {
+    GenericParticles& operator=(const TOther &other) {
         pos_x = other.pos_x;
         pos_y = other.pos_y;
         pos_z = other.pos_z;
@@ -54,46 +58,25 @@ struct HostParticles {
 
         return *this;
     }
-};
 
+    void resize(const size_t new_size) {
+        pos_x.resize(new_size);
+        pos_y.resize(new_size);
+        pos_z.resize(new_size);
+        birthtime.resize(new_size);
+        has_deposited.resize(new_size);
 
-struct DeviceParticles {
-    // constructor
-    DeviceParticles(size_t length_) :
-        length(length_),
-        pos_x(length), pos_y(length), pos_z(length),
-        birthtime(length), has_deposited(length)
-    { }
-
-    // constant across the group variables ---
-    size_t length;
-    // type
-    // source_id
-
-    // individual particle variables ---------
-    thrust::device_vector<float> pos_x;
-    thrust::device_vector<float> pos_y;
-    thrust::device_vector<float> pos_z;
-    //Vector vel_u;
-    //Vector vel_v;
-    //Vector vel_w;
-    thrust::device_vector<time_t> birthtime;
-    thrust::device_vector<bool> has_deposited;
-    // ...
-
-    // convenience functions -----------------
-    template <typename TOther>
-    DeviceParticles& operator=(const TOther &other) {
-        pos_x = other.pos_x;
-        pos_y = other.pos_y;
-        pos_z = other.pos_z;
-
-        birthtime = other.birthtime;
-        has_deposited = other.has_deposited;
-
-        return *this;
+        length = new_size;
     }
 };
+
+// NOTE:
+//  I am using the default allocators that I saw in thrust/host_vector.h & thrust/device_vector.h
+//  These defaults may change in the thrust library without me knowing...
+typedef GenericParticles<thrust::host_vector, std::allocator> HostParticles;
+typedef GenericParticles<thrust::device_vector, thrust::device_malloc_allocator> DeviceParticles;
+
+
 
 
 
