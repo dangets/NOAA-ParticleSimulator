@@ -32,6 +32,7 @@ struct ParticleSimulation {
 
     void step() {
         advectParticles(*particles, *wind, cur_step);
+        //advectParticlesRungeKutta(*particles, *wind, cur_step);
         ++cur_step;
     }
 
@@ -44,9 +45,9 @@ typedef ParticleSimulation<HostParticles,   HostWindData>   HostParticleSimulati
 typedef ParticleSimulation<DeviceParticles, DeviceWindData> DeviceParticleSimulation;
 
 
-static glm::vec3 g_pos = glm::vec3(32.0f, 32.0f, 75.0f);
+static glm::vec3 g_pos = glm::vec3(32.0f, 32.0f, 100.0f);
 static glm::mat4 g_viewMat;
-static glm::mat4 g_projMat = glm::perspective(60.0f, 4.0f/3.0f, 0.1f, 100.0f);
+static glm::mat4 g_projMat = glm::perspective(60.0f, 4.0f/3.0f, 0.1f, 1000.0f);
 
 inline glm::mat4 getViewMatrix() {
     return g_viewMat;

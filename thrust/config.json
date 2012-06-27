@@ -2,12 +2,12 @@
     "num_seconds": 1000,
     "particle_sources": {
         "s1": {
-            "x": 30,    // TODO: change to (or ability of) lat, lon, etc...
-            "y": 30,
+            "x": 25,    // TODO: change to (or ability of) lat, lon, etc...
+            "y": 25,
             "z": 13,
             "release_start": 0,
-            "release_stop": 1000,
-            "release_rate": 20,
+            "release_stop": 500,
+            "release_rate": 2000,
 
             // TODO: "particle_type"
 
