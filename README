@@ -1,0 +1,29 @@
+Dependencies
+    cuda toolkit >= 4.0
+        The thrust library was introduced & included in CUDA release 4.0
+
+    GLEW - OpenGL Extension Wrangler (makes working with OpenGL easier)
+        libglew1.5
+        libglew1.5-dev
+
+    GLFW - library for creating an OpenGL context and basic interaction
+        libglfw2
+        libglfw-dev
+
+    VTK libraries - Provides functions for dumping particle data to industry standard VTK formatted files
+        libvtk5-dev
+
+    GLM - Header-only library that provides vector & matrix math for integration with OpenGL
+        http://glm.g-truc.net/
+        Not officially packaged by Ubuntu 10.10, but it is a very widely used library.
+
+    json-cpp - Library for parsing JSON formatted data in C++ programs
+        http://jsoncpp.sourceforge.net/
+        Not officially packaged by Ubuntu 10.10, but for now it is already included in the lib folder.
+        If it ever does get packaged by Ubuntu, it should be removed from here and use the standard install.
+
+
+How to make a video:
+    I used DevIL previously - missing from this version...
+    DevIL will dump OpenGL framebuffer to PNG files
+    use ffmpeg to make a movie

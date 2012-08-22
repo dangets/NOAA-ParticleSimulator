@@ -1,0 +1,92 @@
+
+ParticleSet data / responsibilities
+	source
+	type
+	position[]    -> (x, y, z)
+	// velocity[] -> (u, v, w)
+	age[]
+	has_deposited[]
+
+ParticleSetImpl
+	thrust_host
+	thrust_device
+	ogl_vbo
+
+
+class ParticleSource
+	position (x, y, z)
+	release_start
+	release_stop
+	release_rate
+
+
+class WindData
+	location		  -> (lat, lon, t0)
+	shape			  -> (x, y, z, t)
+	step_size		  -> (x, y, z, t)	// m
+	velocity(x, y, z) -> (u, v, w)		// m/s
+
+WindDataImpl
+	thrust_host
+	thrust_device
+	texture_memory
+
+
+
+
+Advection Methods
+-------------------
+original		p' = p + 0.5 * (v(p) + v(p+v(p)*dt))	// (hysplit docs)
+runge_kutta
+
+// turbulence
+...
+
+
+Periodic Particle Output
+------------------------------
+OpenGL
+Concentration calculations
+VTK / VTI
+raw_file
+MPI
+
+
+###################################
+# SimulationImpl Combinations
+###################################
+ParticleSet		WindData
+-------------	--------------
+thrust_host		thrust_host
+thrust_device	thrust_device
+thrust_device	texture_memory
+ogl_vbo			thrust_device
+ogl_vbo			texture_memory
+
+
+###################################
+# Simulation step timing
+###################################
+wind -> m / s
+option for normalization of step time in simulation
+	step_time (dt) = wind_spacing / max_wind
+ensures that all sample points are used
+
+
+###################################
+# Thoughts
+###################################
+location is in latitude / longitude or world coordinates
+position is relative to the defined grid
+need function to convert to and from between location and position
+
+wind data is assumed
+	velocity in m / s
+	wind_spacing definition in m
+
+
+Concentration collections
+	sampling boxes defined
+	for each sampling box
+		count_if(particles, lie within box)
+

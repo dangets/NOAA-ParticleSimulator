@@ -1,0 +1,38 @@
+
+
+code organization and brief walkthrough
+	- ParticleSet & WindData
+	- high level overview of Thrust
+	- conversion betweeen host-running and device-running
+	- inputs / outputs
+		- OpenGL
+		- VTK    (show sample VTK video)
+		- ASCII
+		- grib
+	- advection kernel
+	- concentration measurements
+
+
+performance measurements
+	- host side
+	- device side
+	- texture memory
+
+
+future enhancements
+	- map "relative" coordinates to world coordinates
+	- particle specialization
+	- terrain interaction
+
+	- better user-interface
+	- better in-situ interaction
+		- camera movement
+		- construction of particle sources
+		- specification of concentration zones
+		- dump to image / video
+	- investigate optimizations
+		- avoiding OpenGL copy
+		- incremental ParticleSet creation
+
+	- MPI capable (parallelize on particles)
+

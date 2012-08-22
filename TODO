@@ -1,0 +1,32 @@
+Other input/output facilities:
+    NetCDF  (wind data)
+    grib    (wind data)
+    ASCII   particle & wind
+
+
+More complex advection
+
+
+Terrain interaction
+
+
+ParticleSet splitting, sorting
+
+
+MPI
+    (parallelize on ParticleSets)
+
+
+Better OpenGL interface interaction
+    placement of concentration sampling
+    placment/specification of sources
+
+
+Multiple particle sources
+
+Particle type specialization
+    different logic based on particle type
+
+Figure out linking bug
+    for texture wind data there is some clobbering during the make
+    can only have advect_original or advect_runge_kutta but not both
