@@ -240,17 +240,27 @@ struct AdvectRungeKuttaFunctor {
         if (has_deposited)
             return;
 
-        float3 vel_0 = get_velocity_clamp(x, y, z, t);
+        float3 tmp;
+        float3 k1 = get_velocity_clamp(x, y, z, t);
 
-        // first guess position P1
-        float x1 = x + vel_0.x;
-        float y1 = y + vel_0.y;
-        float z1 = z + vel_0.z;
-        float3 vel_1 = get_velocity_clamp(x1, y1, z1, t+1);
+        tmp.x = x + 0.5f*k1.x;
+        tmp.y = y + 0.5f*k1.y;
+        tmp.z = z + 0.5f*k1.z;
 
-        x += 0.5f * vel_0.x + 0.5f * vel_1.x;
-        y += 0.5f * vel_0.y + 0.5f * vel_1.y;
-        z += 0.5f * vel_0.z + 0.5f * vel_1.z;
+        float3 k2 = get_velocity_clamp(tmp.x, tmp.y, tmp.z, t);
+
+        tmp.x = x + 0.5f*k2.x;
+        tmp.y = y + 0.5f*k2.y;
+        tmp.z = z + 0.5f*k2.z;
+
+        float3 k3 = get_velocity_clamp(tmp.x, tmp.y, tmp.z, t);
+
+        // TODO: double check k4 equation...
+        float3 k4 = get_velocity_clamp(x+k3.x, y+k3.y, z+k3.z, t);
+
+        x = x + 1.0f/6.0f * (k1.x + k4.x) + 1.0f/3.0f * (k2.x + k3.x);
+        y = y + 1.0f/6.0f * (k1.y + k4.y) + 1.0f/3.0f * (k2.y + k3.y);
+        z = z + 1.0f/6.0f * (k1.z + k4.z) + 1.0f/3.0f * (k2.z + k3.z);
     }
 };
 

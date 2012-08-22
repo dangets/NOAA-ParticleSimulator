@@ -174,16 +174,16 @@ int main(int argc, char *argv[])
     int num_iterations = 1000;
     std::cout << "num_iterations: " << num_iterations << std::endl;
 
-    // --------------------------------------------
-    //  host side ---------------------------------
-    // --------------------------------------------
+    //// --------------------------------------------
+    ////  host side ---------------------------------
+    //// --------------------------------------------
     //ParticleSetThrustHost part_h = ParticleSetThrustHost_from_particle_source(src);
     //std::cout << "num_particles: " << part_h.size() << std::endl;
 
     //cudaEventRecord(start_compute, 0);
     //for (int i=0; i<num_iterations; ++i) {
-    //    advect_original(part_h, wind_h, (float)i);
-    //    //advect_runge_kutta(part_h, wind_h, (float)i);
+    //    //advect_original(part_h, wind_h, (float)i);
+    //    advect_runge_kutta(part_h, wind_h, (float)i);
     //
     //    //if (i % 10 == 0) {
     //    //    std::stringstream fname;
@@ -219,8 +219,8 @@ int main(int argc, char *argv[])
     ParticleSetThrustDevice part_d = ParticleSetThrustDevice_from_particle_source(src);
     std::cout << "num_particles: " << part_d.size() << std::endl;
 
-    ParticleSetOpenGLVBO         part_ogl(part_d.size());
-    ParticleSetOpenGLVBORenderer p_disp;
+    //ParticleSetOpenGLVBO         part_ogl(part_d.size());
+    //ParticleSetOpenGLVBORenderer p_disp;
 
     // ensure we can capture the escape key being pressed below
     glfwEnable(GLFW_STICKY_KEYS);
@@ -235,15 +235,15 @@ int main(int argc, char *argv[])
             break;
 
         //advect_original(part_d, wind_d, (float)i);
-        //advect_runge_kutta(part_d, wind_d, (float)i);
+        advect_runge_kutta(part_d, wind_d, (float)i);
 
-        advect_original(part_d, wind_t, (float)i);
+        //advect_original(part_d, wind_t, (float)i);
         //advect_runge_kutta(part_d, wind_t, (float)i);
 
-        if (i % 10 == 0) {
-            copy(part_d, part_ogl);
-            p_disp.draw(part_ogl);
-        }
+        //if (i % 10 == 0) {
+        //    copy(part_d, part_ogl);
+        //    p_disp.draw(part_ogl);
+        //}
     }
     cudaEventRecord(stop_compute, 0);
     cudaEventSynchronize(stop_compute);

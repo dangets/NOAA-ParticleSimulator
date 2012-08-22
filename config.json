@@ -7,7 +7,7 @@
             "z": 13,
             "release_start": 0,
             "release_stop": 500,
-            "release_rate": 1000,
+            "release_rate": 10000,
 
             // TODO: "particle_type", etc...
 

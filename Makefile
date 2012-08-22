@@ -18,10 +18,10 @@ CUDA_SRCS = \
 	    ParticleSet.cu \
 	    ParticleSetOpenGLVBO.cu \
 	    WindData.cu \
-	    advect_original.cu \
 	    advect_runge_kutta.cu \
 	    vtk_io.cu \
 	    # \
+	    advect_original.cu \
 
 
 CUDA_OBJS = $(addsuffix .o, $(basename $(CUDA_SRCS)))

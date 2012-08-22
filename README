@@ -23,6 +23,13 @@ Dependencies
         If it ever does get packaged by Ubuntu, it should be removed from here and use the standard install.
 
 
+Notes on running:
+    There is a python script for now to generate the ASCII wind data files.
+    The script 'genData.py' in the data directory will create some files, and
+        the script shouldn't be too complex to read to see what it's doing.
+        It is hardcoded as of now to a cylinder output, but there are other outputs available.
+
+
 How to make a video:
     I used DevIL previously - missing from this version...
     DevIL will dump OpenGL framebuffer to PNG files
