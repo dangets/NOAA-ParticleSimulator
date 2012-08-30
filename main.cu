@@ -102,16 +102,16 @@ int main(int argc, char *argv[])
     int num_iterations = 5000;
     std::cout << "num_iterations: " << num_iterations << std::endl;
 
-    // --------------------------------------------
-    //  host side ---------------------------------
-    // --------------------------------------------
+    //// --------------------------------------------
+    ////  host side ---------------------------------
+    //// --------------------------------------------
     //ParticleSetThrustHost part_h = ParticleSetThrustHost_from_particle_source(src);
     //std::cout << "num_particles: " << part_h.size() << std::endl;
 
     //timer_compute.start();
     //for (int i=0; i<num_iterations; ++i) {
-    //    advect_original(part_h, wind_h, (float)i);
-    //    //advect_runge_kutta(part_h, wind_h, (float)i);
+    //    //advect_original(part_h, wind_h, (float)i);
+    //    advect_runge_kutta(part_h, wind_h, (float)i);
     //
     //    //if (i % 10 == 0) {
     //    //    std::stringstream fname;
@@ -179,9 +179,9 @@ int main(int argc, char *argv[])
             break;
 
         //advect_original(part_d, wind_d, (float)i);
-        //advect_runge_kutta(part_d, wind_d, (float)i);
+        advect_runge_kutta(part_d, wind_d, (float)i);
 
-        advect_original(part_d, wind_t, (float)i);
+        //advect_original(part_d, wind_t, (float)i);
         //advect_runge_kutta(part_d, wind_t, (float)i);
 
         if (i % 10 == 0) {

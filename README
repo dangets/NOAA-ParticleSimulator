@@ -30,3 +30,10 @@ How to make a video (OpenGL):
     I used DevIL previously - missing from this version...
     DevIL will dump OpenGL framebuffer to PNG files
     use ffmpeg to string together PNGs to make a movie
+
+Notes on running:
+    There is a python script for now to generate the ASCII wind data files.
+    The script 'genData.py' in the data directory will create some files, and
+        the script shouldn't be too complex to read to see what it's doing.
+        It is hardcoded as of now to a cylinder output, but there are other outputs available.
+
