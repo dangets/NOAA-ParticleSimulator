@@ -29,7 +29,7 @@
 #include <string>
 
 
-void write_vtp(const ParticleSetThrustHost &p, const std::string &fname);
+void write_vtp(const std::string &fname, const ParticleSetThrustHost &p);
 
 
 #endif /* end of include guard: VTK_IO_CUH */

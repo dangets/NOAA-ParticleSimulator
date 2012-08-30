@@ -40,7 +40,7 @@
 //    thrust::host_vector<bool>  has_deposited;
 
 
-void write_vtp(const ParticleSetThrustHost &p, const std::string &fname)
+void write_vtp(const std::string &fname, const ParticleSetThrustHost &p)
 {
     vtkSmartPointer<vtkPoints>   points    = vtkSmartPointer<vtkPoints>::New();
 

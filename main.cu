@@ -6,20 +6,27 @@
 #include <GL/glfw.h>
 #include <cuda_gl_interop.h>
 
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-
 #include "loadShaders.hpp"
+#include "CUDATimer.cuh"
 
+#include "OGLController.hpp"
+#include "OGLCube.hpp"
 #include "Config.hpp"
 #include "ConfigJSON.hpp"
 #include "WindData.cuh"
 #include "ParticleSet.cuh"
 #include "ParticleSetOpenGLVBO.cuh"
+#include "ParticleSetOpenGLVBORenderer.cuh"
 #include "advect_original.cuh"
 #include "advect_runge_kutta.cuh"
 
 #include "vtk_io.cuh"
+
+
+// ugly globals that should be changeable in the future
+static const int   SCREEN_WIDTH  = 1024;
+static const int   SCREEN_HEIGHT = 768;
+static const float SCREEN_ASPECT = float(SCREEN_WIDTH) / SCREEN_HEIGHT;
 
 
 void init_OpenGL()
@@ -35,7 +42,7 @@ void init_OpenGL()
     glfwOpenWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     // open a window and create its opengl context
-    if (!glfwOpenWindow(1024, 768, 0, 0, 0, 0, 32, 0, GLFW_WINDOW)) {
+    if (!glfwOpenWindow(SCREEN_WIDTH, SCREEN_HEIGHT, 0, 0, 0, 0, 32, 0, GLFW_WINDOW)) {
         fprintf(stderr, "Failed to open GLFW window\n");
         glfwTerminate();
     }
@@ -66,102 +73,22 @@ void init_CUDA()
 
 
 
-class ParticleSetOpenGLVBORenderer {
-    public:
-        GLuint programID;
-        GLuint shaderMVP;
-
-        glm::vec3 pos;
-        glm::mat4 viewMat;
-        glm::mat4 projMat;
-
-        ParticleSetOpenGLVBORenderer()
-            : pos(glm::vec3(32.0f, 32.0f, 200.0f)),
-              viewMat(glm::lookAt(pos, glm::vec3(32.0f, 32.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f))),
-              projMat(glm::perspective(60.0f, 4.0f/3.0f, 0.1f, 1000.0f))
-        {
-            // Create and compile our GLSL program from the shaders
-            programID = loadShaders("simpleVertexShader.vert.glsl", "simpleFragmentShader.frag.glsl");
-            shaderMVP = glGetUniformLocation(programID, "MVP");
-        }
-
-
-        void draw(const ParticleSetOpenGLVBO &particles) {
-            // Clear the screen
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-            //glEnable(GL_DEPTH_TEST);  // TODO: measure performance vs depth test enabled...
-
-            glEnable(GL_POINT_SPRITE);
-            glTexEnvi(GL_POINT_SPRITE, GL_COORD_REPLACE, GL_TRUE);
-            glEnable(GL_VERTEX_PROGRAM_POINT_SIZE);
-
-            // tell OpenGL to use the shader program
-            glUseProgram(programID);
-
-            // update model-view-projection matrix
-            //glm::mat4 projMat = getProjectionMatrix();
-            //glm::mat4 viewMat = getViewMatrix();
-            glm::mat4 modelMat = glm::mat4(1.0f);
-            glm::mat4 mvpMat = projMat * viewMat * modelMat;
-
-            // upload transformation to currently bound shader
-            glUniformMatrix4fv(shaderMVP, 1, GL_FALSE, &mvpMat[0][0]);
-
-            // render vertices (attribute 0 specified in shader)
-            glEnableVertexAttribArray(0);
-            glBindBuffer(GL_ARRAY_BUFFER, particles.position_gl_vbo());
-
-            // 1st attribute buffer: vertices
-            glVertexAttribPointer(
-                    0,          // attribute 0 (no particular reason)
-                    3,          // size
-                    GL_FLOAT,   // type
-                    GL_FALSE,   // normalized?
-                    0,          // stride
-                    (void *)0   // array buffer offset
-                    );
-
-            // draw the shape
-            glDrawArrays(GL_POINTS, 0, particles.size());
-            glDisableVertexAttribArray(0);
-
-            glUseProgram(0);
-            glDisable(GL_VERTEX_PROGRAM_POINT_SIZE);
-            glDisable(GL_POINT_SPRITE);
-            //glDisable(GL_DEPTH_TEST);
-
-            // swap buffers
-            glfwSwapBuffers();
-        }
-};
-
-
-
-
 
 int main(int argc, char *argv[])
 {
-    cudaEvent_t start_transfer;
-    cudaEvent_t stop_transfer;
-    float transfer_time;
-    cudaEvent_t start_compute;
-    cudaEvent_t stop_compute;
-    float compute_time;
-
     if (argc < 2) {
         std::printf("Usage: %s dataFile\n", argv[0]);
         std::exit(1);
     }
 
+    // NOTE: these init calls MUST happen before any other CUDA function calls
     init_OpenGL();
     init_CUDA();
 
-    cudaEventCreate(&start_transfer);
-    cudaEventCreate(&stop_transfer);
-    cudaEventCreate(&start_compute);
-    cudaEventCreate(&stop_compute);
+    CUDATimer timer_upload;
+    CUDATimer timer_compute;
 
-    // read in config file
+    // read in the config file
     std::ifstream cfg_file("config.json");
     Config cfg = ConfigFromJSON(cfg_file);
 
@@ -171,7 +98,8 @@ int main(int argc, char *argv[])
     // read wind data from file
     WindDataThrustHost wind_h = WindDataThrustASCIIConverter::from_file(argv[1]);
 
-    int num_iterations = 1000;
+    float elapsed;
+    int num_iterations = 5000;
     std::cout << "num_iterations: " << num_iterations << std::endl;
 
     // --------------------------------------------
@@ -180,7 +108,7 @@ int main(int argc, char *argv[])
     //ParticleSetThrustHost part_h = ParticleSetThrustHost_from_particle_source(src);
     //std::cout << "num_particles: " << part_h.size() << std::endl;
 
-    //cudaEventRecord(start_compute, 0);
+    //timer_compute.start();
     //for (int i=0; i<num_iterations; ++i) {
     //    advect_original(part_h, wind_h, (float)i);
     //    //advect_runge_kutta(part_h, wind_h, (float)i);
@@ -188,45 +116,61 @@ int main(int argc, char *argv[])
     //    //if (i % 10 == 0) {
     //    //    std::stringstream fname;
     //    //    fname << "junk." << i << ".vtp";
-    //    //    write_vtp(part_h, fname.str());
+    //    //    write_vtp(fname.str(), part_h);
     //    //}
     //}
-    //cudaEventRecord(stop_compute, 0);
-    //cudaEventSynchronize(stop_compute);
-    //cudaEventElapsedTime(&compute_time, start_compute, stop_compute);
-    //std::cout << "compute_time: " << compute_time << std::endl;
+    //elapsed = timer_compute.get_elapsed_time_sync();
+    //std::cout << "compute_time: " << elapsed << std::endl;
 
     // --------------------------------------------
     //  device side -------------------------------
     // --------------------------------------------
+    float cam_x = wind_h.shape.x() / 2.0f;
+    float cam_y = wind_h.shape.y() / 2.0f;
+
+    float foc_x = cam_x;
+    float foc_y = cam_y;
+    float foc_z = wind_h.shape.z() / 2.0f;
+
+    OGLController ogl_ctrl;
+    ogl_ctrl.look_at(cam_x, cam_y, 200.0f,  // camera position
+                     foc_x, foc_y, foc_z,   // focus point
+                     0.0f, 1.0f, 0.0f);     // up-vector
+    ogl_ctrl.set_perspective(90.0f, SCREEN_ASPECT, 0.1f, 1000.0f);
+
+    OGLCube ogl_border = OGLCube(
+            0.0f, 0.0f, 0.0f,
+            wind_h.shape.x(),
+            wind_h.shape.y(),
+            wind_h.shape.z());
+
+    ParticleSetOpenGLVBORenderer pset_renderer;
+    pset_renderer.init();
+
+
     // copy wind data to device
-    cudaEventRecord(start_transfer, 0);
+    timer_upload.start();
     WindDataThrustDevice  wind_d(wind_h);
-    cudaEventRecord(stop_transfer, 0);
-    cudaEventSynchronize(stop_transfer);
-    cudaEventElapsedTime(&transfer_time, start_transfer, stop_transfer);
-    std::cout << "wind_upload_time: " << transfer_time << std::endl;
+    elapsed = timer_upload.get_elapsed_time_sync();
+    std::cout << "wind_upload_time: " << elapsed << std::endl;
 
     // wind data in texture memory
-    cudaEventRecord(start_transfer, 0);
+    timer_upload.start();
     WindDataTextureMemory wind_t(wind_h.shape);
     copy(wind_h, wind_t);
-    cudaEventRecord(stop_transfer, 0);
-    cudaEventSynchronize(stop_transfer);
-    cudaEventElapsedTime(&transfer_time, start_transfer, stop_transfer);
-    std::cout << "wind_texture_upload_time: " << transfer_time << std::endl;
+    elapsed = timer_upload.get_elapsed_time_sync();
+    std::cout << "wind_texture_upload_time: " << elapsed << std::endl;
 
     ParticleSetThrustDevice part_d = ParticleSetThrustDevice_from_particle_source(src);
     std::cout << "num_particles: " << part_d.size() << std::endl;
 
-    ParticleSetOpenGLVBO         part_ogl(part_d.size());
-    ParticleSetOpenGLVBORenderer p_disp;
+    ParticleSetOpenGLVBO part_ogl(part_d.size());
 
     // ensure we can capture the escape key being pressed below
     glfwEnable(GLFW_STICKY_KEYS);
     glfwEnable(GLFW_STICKY_MOUSE_BUTTONS);
 
-    cudaEventRecord(start_compute, 0);
+    timer_compute.start();
     for (int i=0; i<num_iterations; ++i) {
         // loop break events
         if (glfwGetKey(GLFW_KEY_ESC) == GLFW_PRESS)
@@ -242,14 +186,13 @@ int main(int argc, char *argv[])
 
         if (i % 10 == 0) {
             copy(part_d, part_ogl);
-            p_disp.draw(part_ogl);
+            pset_renderer.draw(ogl_ctrl.get_mvp_mat4(), part_ogl);
+            ogl_border.draw();
+            ogl_ctrl.draw();
         }
     }
-    cudaEventRecord(stop_compute, 0);
-    cudaEventSynchronize(stop_compute);
-    cudaEventElapsedTime(&compute_time, start_compute, stop_compute);
-    std::cout << "compute_time: " << compute_time << std::endl;
-
+    elapsed = timer_compute.get_elapsed_time_sync();
+    std::cout << "compute_time: " << elapsed << std::endl;
 
     cleanup_OpenGL();
 

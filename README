@@ -23,7 +23,10 @@ Dependencies
         If it ever does get packaged by Ubuntu, it should be removed from here and use the standard install.
 
 
-How to make a video:
+How to make a video (Paraview):
+    Dump ParticleSet data to .vtp files and use Paraview
+
+How to make a video (OpenGL):
     I used DevIL previously - missing from this version...
     DevIL will dump OpenGL framebuffer to PNG files
-    use ffmpeg to make a movie
+    use ffmpeg to string together PNGs to make a movie

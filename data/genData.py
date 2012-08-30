@@ -54,7 +54,7 @@ def genCylinderNormalized(ofile, numx, numy, numz, numt):
                     x2 = xlen * xlen
 
                     u = -ylen * dy
-                    v = xlen * dx
+                    v =  xlen * dx
                     w = 0.0
 
                     ofile.write("%f %f %f " % (u, v, w))
@@ -118,7 +118,9 @@ def genMiscCurve(ofile, numx, numy, numz, numt):
 
 if __name__ == "__main__":
     #genCylinder(sys.stdout, 64, 64, 16, 1)
-    genCylinderNormalized(sys.stdout, 512, 512, 64, 1)
+    genCylinderNormalized(sys.stdout, 128, 128, 16, 1)
     #genOutwardSpiral(sys.stdout, 64, 64, 16, 1)
     #genMiscCurve(sys.stdout, 64, 64, 16, 1)
+
+
 
