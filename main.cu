@@ -1,6 +1,10 @@
 
 #include <iostream>
 #include <sstream>
+#include <string>
+
+#include <unistd.h>
+#include <libgen.h>     // basename
 
 #include <GL/glew.h>
 #include <GL/glfw.h>
@@ -11,6 +15,7 @@
 
 #include "OGLController.hpp"
 #include "OGLCube.hpp"
+#include "OGLShaderManager.hpp"
 #include "Config.hpp"
 #include "ConfigJSON.hpp"
 #include "WindData.cuh"
@@ -23,53 +28,71 @@
 #include "vtk_io.cuh"
 
 
-// ugly globals that should be changeable in the future
-static const int   SCREEN_WIDTH  = 1024;
-static const int   SCREEN_HEIGHT = 768;
-static const float SCREEN_ASPECT = float(SCREEN_WIDTH) / SCREEN_HEIGHT;
+namespace {
+    // ugly globals that should be changeable in the future
+    const int   SCREEN_WIDTH  = 1024;
+    const int   SCREEN_HEIGHT = 768;
+    const float SCREEN_ASPECT = float(SCREEN_WIDTH) / SCREEN_HEIGHT;
 
+    // get the directory of the EXECUTABLE (this is different than cwd)
+    std::string get_exec_dir() {
+        size_t buf_size = 256;
+        std::vector<char> buf(buf_size);
+        size_t read_size = readlink("/proc/self/exe", &(buf[0]), buf_size-1);
+        // TODO: check read_size <= buf_size-1 for possible truncation
+        buf[read_size] = '\0';
 
-void init_OpenGL()
-{
-    // initialize glfw
-    if (!glfwInit()) {
-        throw std::runtime_error("Couldn't initialize glfw");
+        return std::string(dirname(&(buf[0]))) + "/";
     }
 
-    glfwOpenWindowHint(GLFW_FSAA_SAMPLES, 4);   // 4x antialiasing
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 3);
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 3);
-    glfwOpenWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    // open a window and create its opengl context
-    if (!glfwOpenWindow(SCREEN_WIDTH, SCREEN_HEIGHT, 0, 0, 0, 0, 32, 0, GLFW_WINDOW)) {
-        fprintf(stderr, "Failed to open GLFW window\n");
+    void init_OpenGL(const std::string &shader_dirpath="shaders/")
+    {
+        // initialize glfw
+        if (!glfwInit()) {
+            throw std::runtime_error("Couldn't initialize glfw");
+        }
+
+        glfwOpenWindowHint(GLFW_FSAA_SAMPLES, 4);   // 4x antialiasing
+        glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 3);
+        glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 3);
+        glfwOpenWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+        // open a window and create its opengl context
+        if (!glfwOpenWindow(SCREEN_WIDTH, SCREEN_HEIGHT, 0, 0, 0, 0, 32, 0, GLFW_WINDOW)) {
+            fprintf(stderr, "Failed to open GLFW window\n");
+            glfwTerminate();
+        }
+
+        // initialize GLEW
+        glewExperimental = GL_TRUE;
+        if (glewInit() != GLEW_OK) {
+            throw std::runtime_error("Couldn't initialize GLEW");
+        }
+
+        glfwSetWindowTitle("NOAA Particle Simulation");
+
+        // initialize GL
+        glClearColor(0.0f, 0.0f, 0.1f, 0.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glEnable(GL_DEPTH_TEST);
+        glDepthFunc(GL_LESS);
+
+        // initialize the shared shader manager
+        OGLShaderManager::SHARED_MGR.add_directory(shader_dirpath.c_str());
+    }
+
+    void cleanup_OpenGL()
+    {
         glfwTerminate();
     }
 
-    // initialize GLEW
-    glewExperimental = GL_TRUE;
-    if (glewInit() != GLEW_OK) {
-        throw std::runtime_error("Couldn't initialize GLEW");
+
+    void init_CUDA()
+    {
+        cudaGLSetGLDevice(0);
     }
-
-    glfwSetWindowTitle("Particle Simulation");
-
-    // initialize GL
-    glClearColor(0.0f, 0.0f, 0.1f, 0.0f);
-    glDisable(GL_DEPTH_TEST);
-}
-
-void cleanup_OpenGL()
-{
-    glfwTerminate();
-}
-
-
-void init_CUDA()
-{
-    cudaGLSetGLDevice(0);
-}
+};
 
 
 
@@ -81,16 +104,21 @@ int main(int argc, char *argv[])
         std::exit(1);
     }
 
+    const std::string exe_dir = get_exec_dir();
+    std::string cfg_file   = exe_dir + "config.json";
+    std::string shader_dir = exe_dir + "shaders/";
+
     // NOTE: these init calls MUST happen before any other CUDA function calls
-    init_OpenGL();
+    //  and init_OpenGL MUST be before init_CUDA
+    init_OpenGL(shader_dir);
     init_CUDA();
 
     CUDATimer timer_upload;
     CUDATimer timer_compute;
 
     // read in the config file
-    std::ifstream cfg_file("config.json");
-    Config cfg = ConfigFromJSON(cfg_file);
+    std::ifstream cfg_istream(cfg_file.c_str());
+    Config cfg = ConfigFromJSON(cfg_istream);
 
     // create a particle source
     ParticleSource &src = cfg.particle_sources[0];
@@ -127,26 +155,25 @@ int main(int argc, char *argv[])
     // --------------------------------------------
     float cam_x = wind_h.shape.x() / 2.0f;
     float cam_y = wind_h.shape.y() / 2.0f;
+    float cam_z = std::max(wind_h.shape.x(), wind_h.shape.y()) * 1.2f;
 
     float foc_x = cam_x;
     float foc_y = cam_y;
     float foc_z = wind_h.shape.z() / 2.0f;
 
     OGLController ogl_ctrl;
-    ogl_ctrl.look_at(cam_x, cam_y, 200.0f,  // camera position
+    ogl_ctrl.look_at(cam_x, cam_y, cam_z,  // camera position
                      foc_x, foc_y, foc_z,   // focus point
                      0.0f, 1.0f, 0.0f);     // up-vector
-    ogl_ctrl.set_perspective(90.0f, SCREEN_ASPECT, 0.1f, 1000.0f);
+    ogl_ctrl.set_perspective(60.0f, SCREEN_ASPECT, 0.1f, 500.0f);
 
     OGLCube ogl_border = OGLCube(
             0.0f, 0.0f, 0.0f,
-            wind_h.shape.x(),
-            wind_h.shape.y(),
-            wind_h.shape.z());
+            float(wind_h.shape.x()),
+            float(wind_h.shape.y()),
+            float(wind_h.shape.z()));
 
     ParticleSetOpenGLVBORenderer pset_renderer;
-    pset_renderer.init();
-
 
     // copy wind data to device
     timer_upload.start();
@@ -179,15 +206,15 @@ int main(int argc, char *argv[])
             break;
 
         //advect_original(part_d, wind_d, (float)i);
-        advect_runge_kutta(part_d, wind_d, (float)i);
+        //advect_runge_kutta(part_d, wind_d, (float)i);
 
         //advect_original(part_d, wind_t, (float)i);
-        //advect_runge_kutta(part_d, wind_t, (float)i);
+        advect_runge_kutta(part_d, wind_t, (float)i);
 
         if (i % 10 == 0) {
             copy(part_d, part_ogl);
             pset_renderer.draw(ogl_ctrl.get_mvp_mat4(), part_ogl);
-            ogl_border.draw();
+            ogl_border.draw(ogl_ctrl.get_mvp_mat4());
             ogl_ctrl.draw();
         }
     }

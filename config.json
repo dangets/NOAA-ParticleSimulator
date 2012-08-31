@@ -1,20 +1,21 @@
 {
     "particle_sources": {
         "s1": {
-            "comment": "blah blah",
-            "x": 3,    // TODO: change to (or ability of) lat, lon, etc...
-            "y": 3,
-            "z": 13,
+            "name": "Springfield Nuclear Reactor",
+            "comment": "whoopsy",
+            "x": 10,    // TODO: change to (or ability of) lat, lon, etc...
+            "y": 10,
+            "z": 1,
             "release_start": 0,
             "release_stop": 500,
-            "release_rate": 10000,
+            "release_rate": 1000,
 
             // TODO: "particle_type", etc...
 
             // optional
             "size_x": 15,
             "size_y": 15,
-            "size_z": 2
+            "size_z": 5
         }
     }
 }

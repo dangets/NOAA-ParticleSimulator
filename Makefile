@@ -38,7 +38,7 @@ CUDA_OBJS = $(addsuffix .o, $(basename $(CUDA_SRCS)))
 
 # NOTE: for some reason 'main.cu' has to be at the END of the files to be compiled
 #	(nvcc bug as of v4.0)
-main: loadShaders.o OGLController.o OGLCube.o $(CUDA_OBJS) main.cu
+main: OGLShaderManager.o OGLController.o OGLCube.o $(CUDA_OBJS) main.cu
 	nvcc -o $@ $^ $(OTHER_FILES) $(NVCC_INCL) $(NVCC_LIBS)
 
 
@@ -46,6 +46,10 @@ TESTS :=
 testWindData: WindData.o testWindData.cu
 	nvcc -o $@ $^ $(NVCC_INCL) $(NVCC_LIBS)
 TESTS += testWindData
+
+testOGLShaderManager: testOGLShaderManager.cpp OGLShaderManager.o
+	g++ -o $@ $^ $(OPENGL_LIBS)
+TESTS += testOGLShaderManager
 
 testOGLCamera: testOGLCamera.cpp OGLCamera.o loadShaders.o
 	g++ -o $@ $^ $(OPENGL_LIBS)

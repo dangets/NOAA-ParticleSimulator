@@ -50,8 +50,8 @@ ParticleSetThrustHost ParticleSetThrustHost_from_particle_source(const ParticleS
     fill_birthtime(p, src);
     randomize_positions(p,
             src.position.x, src.position.x + src.size.x,
-            src.position.y, src.position.x + src.size.y,
-            src.position.z, src.position.x + src.size.z);
+            src.position.y, src.position.y + src.size.y,
+            src.position.z, src.position.z + src.size.z);
 
     return p;
 }
@@ -62,8 +62,8 @@ ParticleSetThrustDevice ParticleSetThrustDevice_from_particle_source(const Parti
     fill_birthtime(p, src);
     randomize_positions(p,
             src.position.x, src.position.x + src.size.x,
-            src.position.y, src.position.x + src.size.y,
-            src.position.z, src.position.x + src.size.z);
+            src.position.y, src.position.y + src.size.y,
+            src.position.z, src.position.z + src.size.z);
 
     return p;
 }

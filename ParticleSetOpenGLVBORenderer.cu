@@ -1,15 +1,29 @@
 #include "ParticleSetOpenGLVBORenderer.cuh"
 
 // setup the static variables
-bool ParticleSetOpenGLVBORenderer::did_static_init = false;
 GLuint ParticleSetOpenGLVBORenderer::programID = 0;
 GLuint ParticleSetOpenGLVBORenderer::shaderMVP_loc = 0;
+
+ParticleSetOpenGLVBORenderer::ParticleSetOpenGLVBORenderer() {
+    static_init();
+}
+
+
+void ParticleSetOpenGLVBORenderer::static_init() {
+    static bool did_static_init = false;
+    if (did_static_init) {
+        return;
+    }
+
+    // get the id of the previously compiled shaders
+    programID = OGLShaderManager::SHARED_MGR.get_program_id("particles");
+    shaderMVP_loc = glGetUniformLocation(programID, "MVP");
+    did_static_init = true;
+}
 
 
 void ParticleSetOpenGLVBORenderer::draw(const glm::mat4 &mvpMat, const ParticleSetOpenGLVBO &particles)
 {
-    //glEnable(GL_DEPTH_TEST);  // TODO: measure performance vs depth test enabled...
-
     glEnable(GL_POINT_SPRITE);
     glTexEnvi(GL_POINT_SPRITE, GL_COORD_REPLACE, GL_TRUE);
     glEnable(GL_VERTEX_PROGRAM_POINT_SIZE);

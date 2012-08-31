@@ -38,7 +38,7 @@
 Config ConfigFromJSON(std::istream &in) {
     Config cfg;
 
-    Json::Value root;   // will contain the root value after parsing.
+    Json::Value  root;   // will contain the root value after parsing.
     Json::Reader reader;
 
     bool parsingSuccessful = reader.parse(in, root);
