@@ -21,38 +21,21 @@
    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
    SOFTWARE. */
 
-#ifndef PARTICLESOURCE_HPP
-#define PARTICLESOURCE_HPP
+#ifndef ADVECT_ORIGINAL_CUH
+#define ADVECT_ORIGINAL_CUH
+
+#include <thrust/for_each.h>
+#include <thrust/tuple.h>
+#include <thrust/iterator/zip_iterator.h>
+
+#include "WindData.cuh"
+#include "ParticleSet.cuh"
 
 
-struct Position {
-    float x;
-    float y;
-    float z;
-};
-
-struct Size {
-    float x;
-    float y;
-    float z;
-};
+void advect_original(ParticleSetThrustHost   &particles, const WindDataThrustHost   &wind, float t);
+void advect_original(ParticleSetThrustDevice &particles, const WindDataThrustDevice &wind, float t);
+void advect_original(ParticleSetThrustDevice &particles,       WindDataTextureMemory &wind, float t);
 
 
-struct ParticleSource {
-    ParticleSource(const Position &pos, const Size &siz,
-            const unsigned int &start, const unsigned int &stop, float rate)
-        : position(pos), size(siz),
-          release_start(start), release_stop(stop), release_rate(rate)
-    { }
+#endif /* end of include guard: ADVECT_ORIGINAL_CUH */
 
-    Position position;
-    Size     size;
-
-    unsigned int release_start;    // relative seconds
-    unsigned int release_stop;
-    float        release_rate;     // particles per second
-};
-
-
-
-#endif /* end of include guard: PARTICLESOURCE_HPP */

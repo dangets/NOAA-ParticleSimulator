@@ -3,6 +3,7 @@
 
 
 #include <iostream>
+#include <stdexcept>
 #include <cstdlib>
 #include <ctime>
 
@@ -30,7 +31,7 @@ struct GenericParticles {
         birthtime(length, 0), has_deposited(length, false)
     { }
 
-    // constant across the group variables ---
+    // consistent across the group variables ---
     size_t length;
     // source_id
     // type
@@ -101,7 +102,7 @@ struct OpenGLParticles {
     OpenGLParticles(size_t length_) :
         length(length_)
     {
-        size_t pos_size = length * sizeof(float4);
+        size_t pos_size = length * sizeof(float3);
 
         // create and allocate OpenGL buffers
         glGenBuffers(1, &pos_vbo);
@@ -136,11 +137,10 @@ struct OpenGLParticles {
 
         thrust::transform(
             thrust::make_zip_iterator(thrust::make_tuple(p.pos_x.begin(), p.pos_y.begin(), p.pos_z.begin())),
-            thrust::make_zip_iterator(thrust::make_tuple(p.pos_x.end(), p.pos_y.end(), p.pos_z.end())),
+            thrust::make_zip_iterator(thrust::make_tuple(p.pos_x.end(),   p.pos_y.end(),   p.pos_z.end())),
             dev_ptr,
             OpenGLParticleCopy()
         );
-
         unmapCUDA();
     }
 

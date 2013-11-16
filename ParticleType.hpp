@@ -21,38 +21,26 @@
    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
    SOFTWARE. */
 
-#ifndef PARTICLESOURCE_HPP
-#define PARTICLESOURCE_HPP
+#ifndef PARTICLETYPE_HPP
+#define PARTICLETYPE_HPP
+
+#include <map>
+#include <string>
 
 
-struct Position {
-    float x;
-    float y;
-    float z;
-};
+class ParticleType {
+    public:
+        int id;
+        std::string name;
+        // mass
+        // ...
 
-struct Size {
-    float x;
-    float y;
-    float z;
-};
-
-
-struct ParticleSource {
-    ParticleSource(const Position &pos, const Size &siz,
-            const unsigned int &start, const unsigned int &stop, float rate)
-        : position(pos), size(siz),
-          release_start(start), release_stop(stop), release_rate(rate)
-    { }
-
-    Position position;
-    Size     size;
-
-    unsigned int release_start;    // relative seconds
-    unsigned int release_stop;
-    float        release_rate;     // particles per second
+    private:
+        // TODO: private constructor
+        //  create static method to construct or return existing type
+        static std::map<int, ParticleType> types;
 };
 
 
+#endif /* end of include guard: PARTICLETYPE_HPP */
 
-#endif /* end of include guard: PARTICLESOURCE_HPP */

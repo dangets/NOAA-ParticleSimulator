@@ -1,9 +1,7 @@
 {
-    "time_step_width": 1,
-    "time_step_unit": "s",
-    "num_time_steps": 2000,
     "particle_sources": {
         "s1": {
+            "comment": "blah blah",
             "x": 5,    // TODO: change to (or ability of) lat, lon, etc...
             "y": 5,
             "z": 13,
@@ -11,12 +9,12 @@
             "release_stop": 500,
             "release_rate": 4000,
 
-            // TODO: "particle_type"
+            // TODO: "particle_type", etc...
 
             // optional
-            "dx": 3,
-            "dy": 2,
-            "dz": 3
+            "size_x": 15,
+            "size_y": 15,
+            "size_z": 2
         }
     }
 }

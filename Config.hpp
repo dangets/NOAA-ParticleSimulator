@@ -21,38 +21,18 @@
    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
    SOFTWARE. */
 
-#ifndef PARTICLESOURCE_HPP
-#define PARTICLESOURCE_HPP
+#ifndef CONFIG_HPP
+#define CONFIG_HPP
 
+#include <vector>
 
-struct Position {
-    float x;
-    float y;
-    float z;
-};
+#include "ParticleSource.hpp"
 
-struct Size {
-    float x;
-    float y;
-    float z;
+struct Config {
+    std::vector<ParticleSource> particle_sources;
+    size_t num_seconds;
 };
 
 
-struct ParticleSource {
-    ParticleSource(const Position &pos, const Size &siz,
-            const unsigned int &start, const unsigned int &stop, float rate)
-        : position(pos), size(siz),
-          release_start(start), release_stop(stop), release_rate(rate)
-    { }
+#endif /* end of include guard: CONFIG_HPP */
 
-    Position position;
-    Size     size;
-
-    unsigned int release_start;    // relative seconds
-    unsigned int release_stop;
-    float        release_rate;     // particles per second
-};
-
-
-
-#endif /* end of include guard: PARTICLESOURCE_HPP */

@@ -16,7 +16,6 @@
 using std::size_t;
 
 
-
 struct HostWindData {
     const size_t num_x;
     const size_t num_y;
